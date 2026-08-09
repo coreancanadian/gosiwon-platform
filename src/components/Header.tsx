@@ -1,12 +1,15 @@
 import { getTranslations } from "next-intl/server";
-import { House, LayoutDashboard, MessageSquare } from "lucide-react";
+import { House, LayoutDashboard, MessageSquare, ShieldCheck } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { getCurrentProfile } from "@/lib/auth";
 import { LocaleSwitcher } from "./LocaleSwitcher";
 import { LogoutButton } from "./LogoutButton";
 
 export async function Header() {
-  const t = await getTranslations("Nav");
+  const [t, tRep] = await Promise.all([
+    getTranslations("Nav"),
+    getTranslations("Reputation"),
+  ]);
 
   // Null in demo mode, so the header renders its signed-out state.
   const profile = await getCurrentProfile();
@@ -43,13 +46,23 @@ export async function Header() {
                   <span className="hidden sm:inline">{t("dashboard")}</span>
                 </Link>
               ) : (
-                <Link
-                  href="/inquiries"
-                  className="flex items-center gap-1.5 rounded-full px-3 py-2 text-sm text-ink-600 transition hover:bg-ink-100"
-                >
-                  <MessageSquare className="h-4 w-4" aria-hidden />
-                  <span className="hidden sm:inline">{t("myInquiries")}</span>
-                </Link>
+                <>
+                  <Link
+                    href="/inquiries"
+                    className="flex items-center gap-1.5 rounded-full px-3 py-2 text-sm text-ink-600 transition hover:bg-ink-100"
+                  >
+                    <MessageSquare className="h-4 w-4" aria-hidden />
+                    <span className="hidden sm:inline">{t("myInquiries")}</span>
+                  </Link>
+                  {/* A tenant can always read the record hosts see. */}
+                  <Link
+                    href="/my-record"
+                    className="flex items-center gap-1.5 rounded-full px-3 py-2 text-sm text-ink-600 transition hover:bg-ink-100"
+                  >
+                    <ShieldCheck className="h-4 w-4" aria-hidden />
+                    <span className="hidden sm:inline">{tRep("myRecord")}</span>
+                  </Link>
+                </>
               )}
               <LogoutButton label={t("logout")} />
             </>

@@ -292,6 +292,34 @@
     "writeReview": "평가 남기기",
     "reviewSubtitle": "실제로 관찰하신 부분만 평가해 주세요. 평가는 양측이 모두 작성한 후에 공개됩니다."
   },
+  "Stay": {
+    "title": "입주 관리",
+    "recordMoveIn": "입주 확정하기",
+    "moveInDate": "입주일",
+    "recordHint": "입주가 확정되면 거주 기록이 시작됩니다. 퇴실 후 서로 평가를 남길 수 있습니다.",
+    "active": "거주 중",
+    "since": "{date} 입주",
+    "completeStay": "퇴실 처리",
+    "moveOutDate": "퇴실일",
+    "completed": "거주 완료",
+    "period": "{from} ~ {to}",
+    "reviewPrompt": "이번 거주는 어떠셨나요?",
+    "reviewPending": "상대방의 평가를 기다리는 중입니다. 양측이 모두 작성하면 공개됩니다.",
+    "reviewDone": "평가를 남기셨습니다",
+    "myRecordTitle": "내 거주 이력",
+    "noStays": "아직 거주 기록이 없습니다.",
+    "reviewOf": "{property} 거주 평가"
+  },
+  "Admin": {
+    "claims": "운영자 인증 심사",
+    "claimFor": "{property} 인증 요청",
+    "claimant": "신청자",
+    "evidence": "제출한 확인 정보",
+    "contact": "연락처",
+    "submittedAt": "신청일",
+    "approved": "승인되었습니다",
+    "rejected": "거절되었습니다"
+  },
   "Footer": {
     "tagline": "한국의 고시원과 셰어하우스를 한 곳에서.",
     "forHosts": "호스트를 위한 안내",

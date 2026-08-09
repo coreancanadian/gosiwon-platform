@@ -9,6 +9,8 @@ import type {
   Profile,
   Property,
   Room,
+  Stay,
+  StayReview,
 } from "@/lib/types/database";
 
 export interface InquiryListItem extends Inquiry {
@@ -28,6 +30,10 @@ export interface InquiryThread extends InquiryListItem {
    * nothing otherwise, so this can't leak by forgetting a UI check.
    */
   applicantReputation: ApplicantReputation | null;
+  /** The tenancy opened from this inquiry, once the host confirms move-in. */
+  stay: Stay | null;
+  /** The viewer's own review of that stay, if they've written it. */
+  myReview: StayReview | null;
 }
 
 const LIST_SELECT = `
@@ -100,6 +106,25 @@ export async function getInquiryThread(
     supabase.rpc("get_applicant_reputation", { p_inquiry_id: inquiryId }),
   ]);
 
+  // The tenancy this inquiry turned into, plus whatever review the viewer has
+  // already written for it. RLS scopes both to the two parties.
+  const { data: stay } = await supabase
+    .from("stays")
+    .select("*")
+    .eq("inquiry_id", inquiryId)
+    .maybeSingle();
+
+  let myReview: StayReview | null = null;
+  if (stay) {
+    const { data } = await supabase
+      .from("stay_reviews")
+      .select("*")
+      .eq("stay_id", stay.id)
+      .eq("author_id", user.id)
+      .maybeSingle();
+    myReview = data ?? null;
+  }
+
   return {
     ...typed,
     messages: (messages ?? []) as Message[],
@@ -109,5 +134,7 @@ export async function getInquiryThread(
     viewerIsOwner,
     applicantReputation:
       (reputationRows as ApplicantReputation[] | null)?.[0] ?? null,
+    stay,
+    myReview,
   };
 }

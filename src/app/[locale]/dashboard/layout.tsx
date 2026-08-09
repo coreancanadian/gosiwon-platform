@@ -1,5 +1,5 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { LayoutDashboard, Home, MessageSquare } from "lucide-react";
+import { LayoutDashboard, Home, MessageSquare, BadgeCheck } from "lucide-react";
 import { Link, redirect } from "@/i18n/navigation";
 import { getCurrentProfile } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
@@ -40,10 +40,16 @@ export default async function DashboardLayout({
     return null;
   }
 
+  const tAdmin = await getTranslations("Admin");
+
   const navItems = [
     { href: "/dashboard", label: t("overview"), icon: LayoutDashboard },
     { href: "/dashboard/properties", label: t("myProperties"), icon: Home },
     { href: "/dashboard/inquiries", label: t("inquiries"), icon: MessageSquare },
+    // Approving operator claims transfers a listing, so it stays admin-only.
+    ...(profile.role === "admin"
+      ? [{ href: "/dashboard/claims", label: tAdmin("claims"), icon: BadgeCheck }]
+      : []),
   ];
 
   return (

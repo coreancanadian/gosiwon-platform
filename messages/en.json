@@ -292,6 +292,34 @@
     "writeReview": "Write a review",
     "reviewSubtitle": "Rate only what you actually observed. Reviews stay hidden until both sides have written one."
   },
+  "Stay": {
+    "title": "Tenancy",
+    "recordMoveIn": "Confirm move-in",
+    "moveInDate": "Move-in date",
+    "recordHint": "Confirming move-in starts the stay record. Once it ends, both of you can leave a review.",
+    "active": "Currently staying",
+    "since": "Moved in {date}",
+    "completeStay": "Mark as moved out",
+    "moveOutDate": "Move-out date",
+    "completed": "Stay complete",
+    "period": "{from} – {to}",
+    "reviewPrompt": "How did this stay go?",
+    "reviewPending": "Waiting for the other side. Both reviews appear once you've each written one.",
+    "reviewDone": "You've left your review",
+    "myRecordTitle": "My stay record",
+    "noStays": "No stays recorded yet.",
+    "reviewOf": "Review of your stay at {property}"
+  },
+  "Admin": {
+    "claims": "Operator verification review",
+    "claimFor": "Claim on {property}",
+    "claimant": "Claimant",
+    "evidence": "Evidence submitted",
+    "contact": "Contact",
+    "submittedAt": "Submitted",
+    "approved": "Approved",
+    "rejected": "Rejected"
+  },
   "Footer": {
     "tagline": "Gosiwon and share houses across Korea, in one place.",
     "forHosts": "For hosts",

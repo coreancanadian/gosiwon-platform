@@ -7,6 +7,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { MessageThread } from "@/components/MessageThread";
 import { ReputationCard } from "@/components/ReputationCard";
+import { StayPanel } from "@/components/StayPanel";
 import type { Locale } from "@/i18n/routing";
 
 export default async function InquiryThreadPage({
@@ -71,6 +72,10 @@ export default async function InquiryThreadPage({
           <ReputationCard reputation={thread.applicantReputation} />
         </div>
       ) : null}
+
+      <div className="mb-6">
+        <StayPanel thread={thread} />
+      </div>
 
       <MessageThread thread={thread} />
     </div>

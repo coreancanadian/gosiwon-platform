@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "import": "tsx scripts/import-excel.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "enrich": "tsx scripts/enrich-addresses.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

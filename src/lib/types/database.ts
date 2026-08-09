@@ -81,6 +81,37 @@ export type Stay = {
   created_at: string;
 };
 
+export type ReviewDirection = "owner_on_tenant" | "tenant_on_owner";
+
+/** The five criteria. Deliberately all observable facts about a tenancy. */
+export const REVIEW_CRITERIA = [
+  "payment_timeliness",
+  "cleanliness",
+  "quiet_hours",
+  "communication",
+  "rule_compliance",
+] as const;
+
+export type ReviewCriterion = (typeof REVIEW_CRITERIA)[number];
+
+export type StayReview = {
+  id: string;
+  stay_id: string;
+  author_id: string;
+  subject_id: string;
+  direction: ReviewDirection;
+  payment_timeliness: number | null;
+  cleanliness: number | null;
+  quiet_hours: number | null;
+  communication: number | null;
+  rule_compliance: number | null;
+  comment: string | null;
+  subject_reply: string | null;
+  is_visible: boolean;
+  created_at: string;
+  expires_at: string;
+};
+
 /** Aggregate returned by get_applicant_reputation(). Never per-property. */
 export type ApplicantReputation = {
   stays_completed: number;
@@ -280,6 +311,7 @@ export interface Database {
       host_subscriptions: Table<HostSubscription>;
       property_claims: Table<PropertyClaim>;
       stays: Table<Stay>;
+      stay_reviews: Table<StayReview>;
     };
     Views: Record<string, never>;
     Functions: {
