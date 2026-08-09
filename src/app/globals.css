@@ -1,26 +1,69 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  /* Warm coral accent — hospitality without being a Airbnb clone. */
+  --color-brand-50: #fff1ef;
+  --color-brand-100: #ffe0dc;
+  --color-brand-200: #ffc5bd;
+  --color-brand-300: #ff9e91;
+  --color-brand-400: #fa7663;
+  --color-brand-500: #e45b4e;
+  --color-brand-600: #cc4235;
+  --color-brand-700: #a9332a;
+  --color-brand-800: #8b2d26;
+  --color-brand-900: #742b25;
+
+  /* Warm neutrals rather than pure grays — softer against the coral. */
+  --color-ink-50: #faf9f8;
+  --color-ink-100: #f4f2f0;
+  --color-ink-200: #e8e5e1;
+  --color-ink-300: #d6d1cb;
+  --color-ink-400: #a8a09a;
+  --color-ink-500: #7c736c;
+  --color-ink-600: #5c554f;
+  --color-ink-700: #453f3b;
+  --color-ink-800: #2c2825;
+  --color-ink-900: #1a1715;
+
+  /* System stack: renders Hangul natively on every target platform with no
+     webfont payload. An undefined var() here would invalidate the whole
+     declaration, so no custom-property indirection. */
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Apple SD Gothic Neo",
+    "Malgun Gothic", "Noto Sans KR", sans-serif;
+
+  --radius-card: 0.875rem;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  body {
+    background: #fff;
+    color: var(--color-ink-800);
+    font-family: var(--font-sans);
+  }
+
+  /* Korean text has no word spaces in long compounds — keep it from
+     breaking mid-word in narrow cards. */
+  :lang(ko) {
+    word-break: keep-all;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer utilities {
+  /* Horizontal scrollers (amenity chips, photo strips) without visible bars. */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .line-clamp-mask {
+    mask-image: linear-gradient(to bottom, #000 60%, transparent 100%);
+  }
 }

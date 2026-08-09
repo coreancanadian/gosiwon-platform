@@ -1,36 +1,147 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 고시원 스페이스 / Gosiwon Space
 
-## Getting Started
+A bilingual (KR/EN) listing platform for Korean 고시원 and 셰어하우스. Renters
+search by district or subway station, browse listings on an Airbnb-style
+split map view, and send an inquiry. Hosts accept or decline inquiries, message
+applicants, and manage their own listings from a dashboard.
 
-First, run the development server:
+Deliberately **not** a real-time booking engine: nothing is reservable. The host
+always decides who gets in.
+
+## Stack
+
+| Concern | Choice |
+| --- | --- |
+| Framework | Next.js 16 (App Router, Turbopack, React 19) |
+| Styling | Tailwind CSS v4 |
+| i18n | next-intl v4 — `/` is Korean, `/en` is English |
+| Database / auth / storage | Supabase (Postgres + RLS) |
+| Maps | Kakao Maps |
+| Hosting | Vercel |
+
+> **Next.js 16 note:** the `middleware.ts` convention is deprecated in favour of
+> `proxy.ts` (Node runtime, not edge). See `src/proxy.ts`.
+
+## Quick start
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install && npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000. With no environment variables set the app runs in
+**demo mode**: 8 seeded listings, all 35 location/subway tiles, and full search
+render from local fixtures. Auth, inquiries, and messaging show a "demo mode"
+notice instead of erroring.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Going live
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 1. Supabase
 
-## Learn More
+Create a project (choose the **Seoul `ap-northeast-2`** region for Korean
+latency), then run the migrations in order from `supabase/migrations/`:
 
-To learn more about Next.js, take a look at the following resources:
+| File | What it does |
+| --- | --- |
+| `0001_init.sql` | Tables, indexes, triggers, and all RLS policies |
+| `0002_seed_reference_data.sql` | Region tiles, subway stations, amenity vocabulary |
+| `0003_counterparty_contact.sql` | Releases host contact details only after acceptance |
+| `0004_storage.sql` | `property-images` bucket + per-host upload policies |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Copy `.env.example` to `.env.local` and fill in the URL and anon key. The app
+switches off demo mode automatically.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Regenerate the hand-written types once the schema is live:
 
-## Deploy on Vercel
+```bash
+npx supabase gen types typescript --project-id <ref> > src/lib/types/database.ts
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 2. Kakao Maps
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Register at [developers.kakao.com](https://developers.kakao.com), then:
+
+- **JavaScript key** → `NEXT_PUBLIC_KAKAO_MAP_KEY` (the browser map)
+- **REST API key** → `KAKAO_REST_API_KEY` (address geocoding in the importer)
+
+Add your domain under **Platform → Web** or the SDK refuses to load. Without a
+key the map degrades to a labelled placeholder rather than breaking the page.
+
+### 3. Import your listings
+
+```bash
+npm run import -- --dir ./data --dry-run          # inspect the parse
+npm run import -- --dir ./data --owner <uuid>     # write as drafts
+npm run import -- --dir ./data --owner <uuid> --publish
+```
+
+The importer handles how Korean listing spreadsheets are actually written:
+
+- Finds the header row even when export junk sits above it
+- Matches headers by alias, so `월세`, `월 세`, `월세(원)`, and `임대료` all map to rent
+- Parses `38만원`, `38만`, `380,000`, and a bare `38` all to `380000`
+- Converts `13평` to `42.98㎡`
+- Treats rows sharing a name + address as one property with multiple rooms
+- Geocodes addresses via Kakao when `lat`/`lng` columns are absent
+- Reports unmapped columns so you can extend `scripts/column-map.ts`
+
+Imports land as **drafts** unless you pass `--publish`.
+
+### 4. Deploy
+
+Import the repo into Vercel, add the same environment variables, and deploy.
+
+**Your domain:** you do *not* need to move it off GoDaddy. Point DNS at Vercel
+and you're done. Transfer only if Hostinger's renewal price is lower — the
+domain registrar and the host are independent decisions.
+
+## Cost
+
+| Stage | Monthly |
+| --- | --- |
+| Pilot (Vercel Hobby + Supabase Free) | $0 |
+| Commercial (Vercel Pro $20 + Supabase Pro $25) | ~$45 |
+
+Vercel's Hobby tier prohibits commercial use, so budget for Pro once the site is
+doing real business. Cloudflare Workers + D1 is the cheaper alternative whose
+free tier permits commercial use.
+
+## Layout
+
+```
+src/
+  app/[locale]/          Home, search, property detail, inquiry, auth, dashboard
+  app/api/auth/callback  Email-confirmation code exchange
+  components/            UI, incl. KakaoMap, PhotoGallery, SearchBox
+  lib/actions/           Server actions (inquiries, properties) — zod validated
+  lib/data/              Queries + demo-mode fixtures
+  proxy.ts               i18n routing + Supabase session refresh
+supabase/migrations/     Schema, seed, security, storage
+scripts/                 Excel importer + column alias map
+```
+
+## Security notes
+
+- Every table has RLS on. Hosts can only read and write their own listings.
+- Inquiries and messages are visible only to the two parties involved.
+- `profiles` exposes only your own row. Counterparty details come from
+  `get_inquiry_counterparty()`, a `SECURITY DEFINER` function that returns the
+  other party's **name** always but their **phone / KakaoTalk / WhatsApp only
+  once the inquiry is accepted**. Loosening the table policy instead would leak
+  contact details on every pending inquiry.
+- Server actions re-check ownership rather than trusting client input; RLS is
+  the backstop, not the only gate.
+- `SUPABASE_SERVICE_ROLE_KEY` bypasses RLS. It is used only by the importer.
+  Never prefix it with `NEXT_PUBLIC_`.
+
+## Known gaps
+
+- **Listing photos are not yet wired to the public pages' hero** — hosts can
+  upload via the dashboard, but the seeded demo listings have none, so the
+  gallery shows an empty state.
+- **Region and subway tiles use generated gradients**, not photography. Drop a
+  JPG at `public/images/regions/<slug>.jpg` and set `image_url` on the row.
+- **Room names are single-language.** The `rooms` table has one `name` column,
+  so a room called `내창 A` shows as-is on the English site. Add `name_en` if
+  bilingual room labels matter.
+- No email/push notification when an inquiry arrives — hosts must check the
+  dashboard. Supabase lets you add this with a database webhook.
