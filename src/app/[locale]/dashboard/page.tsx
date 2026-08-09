@@ -2,6 +2,8 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Plus } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { getOwnerStats } from "@/lib/data/owner";
+import { getHostPlan } from "@/lib/data/plan";
+import { PlanCard } from "@/components/dashboard/PlanCard";
 
 function StatTile({ label, value }: { label: string; value: number }) {
   return (
@@ -22,11 +24,18 @@ export default async function DashboardOverviewPage({
   const { locale } = await params;
   setRequestLocale(locale);
 
-  const t = await getTranslations("Dashboard");
-  const stats = await getOwnerStats();
+  const [t, stats, hostPlan] = await Promise.all([
+    getTranslations("Dashboard"),
+    getOwnerStats(),
+    getHostPlan(),
+  ]);
 
   return (
     <div>
+      <div className="mb-6">
+        <PlanCard hostPlan={hostPlan} />
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-3">
         <StatTile
           label={t("pendingInquiries")}

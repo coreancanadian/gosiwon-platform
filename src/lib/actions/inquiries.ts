@@ -17,6 +17,9 @@ const createSchema = z.object({
   moveInDate: z.string().date().nullable(),
   durationMonths: z.number().int().min(1).max(60).nullable(),
   introMessage: z.string().trim().min(1).max(2000),
+  // The tenant's explicit, per-application consent to show this host their
+  // stay record. Defaults to false: the record is never shared implicitly.
+  shareReputation: z.boolean().default(false),
 });
 
 /**
@@ -33,8 +36,14 @@ export async function createInquiry(input: unknown): Promise<ActionResult> {
   if (!parsed.success) {
     return { ok: false, error: "Please check the form and try again." };
   }
-  const { propertySlug, roomId, moveInDate, durationMonths, introMessage } =
-    parsed.data;
+  const {
+    propertySlug,
+    roomId,
+    moveInDate,
+    durationMonths,
+    introMessage,
+    shareReputation,
+  } = parsed.data;
 
   const supabase = await createClient();
   const {
@@ -63,6 +72,7 @@ export async function createInquiry(input: unknown): Promise<ActionResult> {
       move_in_date: moveInDate,
       duration_months: durationMonths,
       intro_message: introMessage,
+      share_reputation: shareReputation,
     })
     .select("id")
     .single();

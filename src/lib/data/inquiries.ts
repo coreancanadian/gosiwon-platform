@@ -2,7 +2,14 @@ import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import type { Inquiry, Message, Profile, Property, Room } from "@/lib/types/database";
+import type {
+  ApplicantReputation,
+  Inquiry,
+  Message,
+  Profile,
+  Property,
+  Room,
+} from "@/lib/types/database";
 
 export interface InquiryListItem extends Inquiry {
   properties: Pick<Property, "id" | "slug" | "name_ko" | "name_en" | "address_ko" | "address_en"> | null;
@@ -15,6 +22,12 @@ export interface InquiryThread extends InquiryListItem {
   counterparty: Pick<Profile, "id" | "full_name" | "phone" | "kakao_id" | "whatsapp"> | null;
   viewerId: string;
   viewerIsOwner: boolean;
+  /**
+   * The applicant's aggregate stay record. Non-null only when the viewer is
+   * the host AND the tenant consented on this application — the RPC returns
+   * nothing otherwise, so this can't leak by forgetting a UI check.
+   */
+  applicantReputation: ApplicantReputation | null;
 }
 
 const LIST_SELECT = `
@@ -72,7 +85,8 @@ export async function getInquiryThread(
   const typed = inquiry as unknown as InquiryListItem;
   const viewerIsOwner = typed.owner_id === user.id;
 
-  const [{ data: messages }, { data: counterpartyRows }] = await Promise.all([
+  const [{ data: messages }, { data: counterpartyRows }, { data: reputationRows }] =
+    await Promise.all([
     supabase
       .from("messages")
       .select("*")
@@ -82,6 +96,8 @@ export async function getInquiryThread(
     // row. This definer function returns the counterparty's name always, and
     // their contact details only once the inquiry is accepted.
     supabase.rpc("get_inquiry_counterparty", { p_inquiry_id: inquiryId }),
+    // Returns zero rows unless the caller is the host and the tenant consented.
+    supabase.rpc("get_applicant_reputation", { p_inquiry_id: inquiryId }),
   ]);
 
   return {
@@ -91,5 +107,7 @@ export async function getInquiryThread(
       (counterpartyRows as InquiryThread["counterparty"][] | null)?.[0] ?? null,
     viewerId: user.id,
     viewerIsOwner,
+    applicantReputation:
+      (reputationRows as ApplicantReputation[] | null)?.[0] ?? null,
   };
 }

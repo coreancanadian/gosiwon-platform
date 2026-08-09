@@ -397,6 +397,9 @@ async function write(
           price_min: listing.price_min,
           price_max: listing.price_max,
           is_published: PUBLISH,
+          // The real operator has not registered yet. The public page invites
+          // them to claim it, and approval transfers owner_id to them.
+          claim_status: "unclaimed",
           updated_at: new Date().toISOString(),
         },
         { onConflict: "external_id" },

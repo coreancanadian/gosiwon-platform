@@ -6,6 +6,7 @@ import { getInquiryThread } from "@/lib/data/inquiries";
 import { getCurrentUser } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { MessageThread } from "@/components/MessageThread";
+import { ReputationCard } from "@/components/ReputationCard";
 import type { Locale } from "@/i18n/routing";
 
 export default async function InquiryThreadPage({
@@ -63,6 +64,13 @@ export default async function InquiryThreadPage({
           </p>
         ) : null}
       </div>
+
+      {/* The host sees the applicant's record right where they decide. */}
+      {thread.viewerIsOwner ? (
+        <div className="mb-6">
+          <ReputationCard reputation={thread.applicantReputation} />
+        </div>
+      ) : null}
 
       <MessageThread thread={thread} />
     </div>

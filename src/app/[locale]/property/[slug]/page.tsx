@@ -22,6 +22,7 @@ import {
 import { PhotoGallery, type GalleryImage } from "@/components/PhotoGallery";
 import { AmenitySection } from "@/components/AmenitySection";
 import { ContactHostCard } from "@/components/ContactHostCard";
+import { ClaimBanner } from "@/components/ClaimBanner";
 import { KakaoMap } from "@/components/KakaoMap";
 import type { Locale } from "@/i18n/routing";
 import { formatKrw, formatSqm } from "@/lib/format";
@@ -107,6 +108,12 @@ export default async function PropertyPage({ params }: Props) {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+      {property.claim_status !== "claimed" ? (
+        <div className="mb-5">
+          <ClaimBanner slug={property.slug} claimStatus={property.claim_status} />
+        </div>
+      ) : null}
+
       <PhotoGallery images={images} />
 
       <div className="mt-8 grid gap-10 lg:grid-cols-[minmax(0,1fr)_360px]">

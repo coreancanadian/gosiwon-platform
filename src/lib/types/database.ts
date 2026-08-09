@@ -27,6 +27,71 @@ export function housingCategoryOf(type: PropertyType): HousingCategory {
 }
 export type GenderPolicy = "any" | "male" | "female";
 export type InquiryStatus = "pending" | "accepted" | "declined" | "closed";
+export type ClaimStatus = "unclaimed" | "pending" | "claimed";
+export type ClaimRequestStatus = "pending" | "approved" | "rejected" | "withdrawn";
+export type StayStatus = "active" | "completed" | "cancelled";
+
+export type Plan = {
+  code: string;
+  name_ko: string;
+  name_en: string;
+  description_ko: string | null;
+  description_en: string | null;
+  monthly_price_krw: number;
+  features: Record<string, unknown>;
+  is_assignable: boolean;
+  sort_order: number;
+  created_at: string;
+};
+
+export type HostSubscription = {
+  id: string;
+  profile_id: string;
+  plan_code: string;
+  status: "active" | "paused" | "cancelled";
+  price_krw: number;
+  price_locked: boolean;
+  started_at: string;
+  note: string | null;
+  created_at: string;
+};
+
+export type PropertyClaim = {
+  id: string;
+  property_id: string;
+  claimant_id: string;
+  status: ClaimRequestStatus;
+  evidence: string | null;
+  contact_phone: string | null;
+  reviewer_id: string | null;
+  review_note: string | null;
+  created_at: string;
+  reviewed_at: string | null;
+};
+
+export type Stay = {
+  id: string;
+  property_id: string;
+  tenant_id: string;
+  owner_id: string;
+  inquiry_id: string | null;
+  moved_in_at: string;
+  moved_out_at: string | null;
+  status: StayStatus;
+  created_at: string;
+};
+
+/** Aggregate returned by get_applicant_reputation(). Never per-property. */
+export type ApplicantReputation = {
+  stays_completed: number;
+  reviews_count: number;
+  avg_payment: number | null;
+  avg_cleanliness: number | null;
+  avg_quiet_hours: number | null;
+  avg_communication: number | null;
+  avg_rule_compliance: number | null;
+  avg_overall: number | null;
+};
 export type UserRole = "tenant" | "owner" | "admin";
 export type RegionTier = "seoul" | "incheon" | "major_city";
 export type AmenityCategory =
@@ -124,6 +189,7 @@ export type Property = {
   nearby_universities: string[];
   video_url: string | null;
   external_id: string | null;
+  claim_status: ClaimStatus;
   languages: string[];
   description_ko: string | null;
   description_en: string | null;
@@ -155,6 +221,8 @@ export type Inquiry = {
   move_in_date: string | null;
   duration_months: number | null;
   intro_message: string | null;
+  /** Tenant's per-application consent to reveal their stay record. */
+  share_reputation: boolean;
   created_at: string;
   responded_at: string | null;
 }
@@ -208,6 +276,10 @@ export interface Database {
       }>;
       inquiries: Table<Inquiry>;
       messages: Table<Message>;
+      plans: Table<Plan>;
+      host_subscriptions: Table<HostSubscription>;
+      property_claims: Table<PropertyClaim>;
+      stays: Table<Stay>;
     };
     Views: Record<string, never>;
     Functions: {
@@ -221,6 +293,15 @@ export interface Database {
           kakao_id: string | null;
           whatsapp: string | null;
         }>;
+      };
+      /** See supabase/migrations/0006. Empty unless the tenant consented. */
+      get_applicant_reputation: {
+        Args: { p_inquiry_id: string };
+        Returns: ApplicantReputation[];
+      };
+      approve_property_claim: {
+        Args: { p_claim_id: string };
+        Returns: undefined;
       };
     };
     Enums: Record<string, never>;

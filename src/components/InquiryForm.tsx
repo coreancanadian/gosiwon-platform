@@ -15,6 +15,7 @@ export function InquiryForm({
   rooms: Room[];
 }) {
   const t = useTranslations("Inquiry");
+  const tRep = useTranslations("Reputation");
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
@@ -22,6 +23,8 @@ export function InquiryForm({
   const [moveInDate, setMoveInDate] = useState("");
   const [durationMonths, setDurationMonths] = useState("");
   const [introMessage, setIntroMessage] = useState("");
+  // Opt-in, never pre-checked: sharing a stay record is the tenant's call.
+  const [shareReputation, setShareReputation] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function onSubmit(e: React.FormEvent) {
@@ -35,6 +38,7 @@ export function InquiryForm({
         moveInDate: moveInDate || null,
         durationMonths: durationMonths ? Number(durationMonths) : null,
         introMessage,
+        shareReputation,
       });
 
       if (!result.ok) {
@@ -116,6 +120,25 @@ export function InquiryForm({
           className={`${inputClass} resize-y`}
         />
       </div>
+
+      {/* Consent to share the stay record. Off by default; the tenant opts in
+          because a good record helps them get accepted. */}
+      <label className="flex cursor-pointer gap-3 rounded-xl border border-ink-200 p-3.5 transition hover:border-ink-300">
+        <input
+          type="checkbox"
+          checked={shareReputation}
+          onChange={(e) => setShareReputation(e.target.checked)}
+          className="mt-0.5 h-4 w-4 shrink-0 rounded border-ink-300"
+        />
+        <span className="min-w-0">
+          <span className="block text-sm font-medium text-ink-800">
+            {tRep("shareLabel")}
+          </span>
+          <span className="mt-0.5 block text-xs text-ink-500">
+            {tRep("shareHint")}
+          </span>
+        </span>
+      </label>
 
       {error ? (
         <p role="alert" className="text-sm text-brand-600">

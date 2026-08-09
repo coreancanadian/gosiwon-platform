@@ -62,6 +62,8 @@ interface Spec {
   rooms: Array<[string, number, number, number | null]>;
   amenitySlugs: string[];
   nearbyStations: Record<string, number>;
+  /** Mirrors an imported listing whose operator hasn't registered yet. */
+  unclaimed?: boolean;
 }
 
 const SPECS: Spec[] = [
@@ -264,6 +266,7 @@ const SPECS: Spec[] = [
       "washer", "drying-rack", "bedding", "cleaning", "utilities-incl", "lounge",
     ],
     nearbyStations: { "jongno-3ga": 2, "seoul-station": 16 },
+    unclaimed: true,
   },
   {
     slug: "yeouido-finance-residence",
@@ -330,6 +333,7 @@ const SPECS: Spec[] = [
       "lounge", "rooftop",
     ],
     nearbyStations: {},
+    unclaimed: true,
   },
 ];
 
@@ -360,6 +364,7 @@ export const DEMO_PROPERTIES: DemoProperty[] = SPECS.map((spec, i) => {
     nearby_universities: [],
     video_url: null,
     external_id: null,
+    claim_status: spec.unclaimed ? "unclaimed" : "claimed",
     gender: spec.gender,
     age_min: spec.age_min,
     age_max: spec.age_max,
