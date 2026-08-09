@@ -1,14 +1,16 @@
 /**
  * Import 고시원 / 원룸텔 / 셰어하우스 listings from the source spreadsheets.
  *
- *   npm run import -- --dir "./room files" --dry-run
- *   npm run import -- --dir "./room files" --owner <profile-uuid>
+ *   npm run import -- --dry-run
+ *   npm run import                          # owner auto-resolved
+ *   npm run import -- --owner-email you@example.com
  *
  * Flags:
- *   --dir <path>     Directory of .xlsx/.xls/.csv files (default "./room files")
- *   --owner <uuid>   profiles.id every imported listing is assigned to
- *                    (required unless --dry-run)
- *   --dry-run        Parse and report; write nothing
+ *   --dir <path>           Directory of spreadsheets (default "./room files")
+ *   --owner-email <email>  Host account these listings belong to. Optional —
+ *                          omit it and the only host account is used.
+ *   --owner <uuid>         Explicit override; rarely needed.
+ *   --dry-run              Parse and report; write nothing
  *   --publish        Mark imported listings published (default: draft)
  *   --geocode        Resolve 위치 to coordinates via Kakao (needs KAKAO_REST_API_KEY)
  *   --limit <n>      Import only the first n listings (useful for a trial run)
@@ -53,6 +55,7 @@ const has = (name: string) => process.argv.includes(`--${name}`);
 
 const DIR = flag("dir") ?? "./room files";
 const OWNER_ID = flag("owner");
+const OWNER_EMAIL = flag("owner-email");
 const DRY_RUN = has("dry-run");
 const PUBLISH = has("publish");
 const GEOCODE = has("geocode");
@@ -277,9 +280,80 @@ function slugify(listing: ParsedListing): string {
 }
 
 // ---------------------------------------------------------------------------
+// Owner resolution
+//
+// properties.owner_id is NOT NULL and references profiles(id) — which is itself
+// a foreign key to auth.users(id), so the "auth user id" and the "profiles id"
+// are the same UUID.
+//
+// The app reads that id from supabase.auth.getUser() on every write. This script
+// can't: it runs on the command line with a service-role key and no browser
+// session, so there is no signed-in user to read. Instead of making you paste a
+// UUID, it resolves the owner itself — by email, or automatically when your
+// project has exactly one host account.
+// ---------------------------------------------------------------------------
+async function resolveOwnerId(supabase: SupabaseClient): Promise<string | null> {
+  // 1. Explicit UUID always wins.
+  if (OWNER_ID) return OWNER_ID;
+
+  // 2. By email. Looks up auth.users, whose id IS the profiles id.
+  if (OWNER_EMAIL) {
+    const { data, error } = await supabase.auth.admin.listUsers({
+      page: 1,
+      perPage: 1000,
+    });
+    if (error) {
+      console.error(`✗ Could not list accounts: ${error.message}`);
+      return null;
+    }
+    const match = data.users.find(
+      (u) => u.email?.toLowerCase() === OWNER_EMAIL.toLowerCase(),
+    );
+    if (!match) {
+      console.error(`✗ No account found for ${OWNER_EMAIL}.`);
+      console.error(`  Sign up at /signup first, choosing "a host listing a property".`);
+      return null;
+    }
+    console.log(`Owner: ${OWNER_EMAIL} → ${match.id}`);
+    return match.id;
+  }
+
+  // 3. Exactly one host account in the project — the common pilot case.
+  const { data: hosts, error } = await supabase
+    .from("profiles")
+    .select("id, full_name, role")
+    .in("role", ["owner", "admin"]);
+
+  if (error) {
+    console.error(`✗ Could not read profiles: ${error.message}`);
+    return null;
+  }
+
+  if (!hosts || hosts.length === 0) {
+    console.error(`✗ No host account exists yet.`);
+    console.error(`  Sign up at /signup choosing "a host listing a property", then re-run.`);
+    return null;
+  }
+
+  if (hosts.length > 1) {
+    console.error(`✗ ${hosts.length} host accounts exist — which should own these listings?`);
+    console.error(`  Re-run with --owner-email <email>. Hosts found:`);
+    hosts.forEach((h) => console.error(`    ${h.id}  ${h.full_name ?? "(no name)"} [${h.role}]`));
+    return null;
+  }
+
+  console.log(`Owner: ${hosts[0].full_name ?? hosts[0].id} (only host account)`);
+  return hosts[0].id;
+}
+
+// ---------------------------------------------------------------------------
 // Writing
 // ---------------------------------------------------------------------------
-async function write(listings: ParsedListing[], supabase: SupabaseClient) {
+async function write(
+  listings: ParsedListing[],
+  supabase: SupabaseClient,
+  ownerId: string,
+) {
   const [{ data: regions }, { data: amenities }, { data: stations }] =
     await Promise.all([
       supabase.from("regions").select("id, slug"),
@@ -301,7 +375,7 @@ async function write(listings: ParsedListing[], supabase: SupabaseClient) {
       .from("properties")
       .upsert(
         {
-          owner_id: OWNER_ID,
+          owner_id: ownerId,
           external_id: listing.external_id,
           slug: slugify(listing),
           name_ko: listing.name_ko,
@@ -475,12 +549,13 @@ async function main() {
     console.error(`\n✗ NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required to write.`);
     process.exit(1);
   }
-  if (!OWNER_ID) {
-    console.error(`\n✗ --owner <profile-uuid> is required.`);
-    process.exit(1);
-  }
 
-  await write(listings, createClient(url, serviceKey, { auth: { persistSession: false } }));
+  const supabase = createClient(url, serviceKey, { auth: { persistSession: false } });
+
+  const ownerId = await resolveOwnerId(supabase);
+  if (!ownerId) process.exit(1);
+
+  await write(listings, supabase, ownerId);
 }
 
 main().catch((e) => {

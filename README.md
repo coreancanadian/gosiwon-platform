@@ -69,10 +69,21 @@ key the map degrades to a labelled placeholder rather than breaking the page.
 ### 3. Import your listings
 
 ```bash
-npm run import -- --dir ./data --dry-run          # inspect the parse
-npm run import -- --dir ./data --owner <uuid>     # write as drafts
-npm run import -- --dir ./data --owner <uuid> --publish
+npm run import -- --dry-run     # inspect the parse, write nothing
+npm run import                  # write as drafts
+npm run import -- --geocode --publish
 ```
+
+You never need to look up a UUID. `properties.owner_id` references
+`profiles.id`, which is itself a foreign key to `auth.users(id)` — so the auth
+user id and the profile id are **the same UUID**, and the app always reads it
+from `supabase.auth.getUser()`.
+
+The importer is the one place that can't: it runs on the command line with a
+service-role key and no browser session. So it resolves the owner itself —
+automatically when your project has a single host account, or via
+`--owner-email <email>` when there is more than one. It tells you exactly what
+to do if it can't decide.
 
 The importer handles how Korean listing spreadsheets are actually written:
 
