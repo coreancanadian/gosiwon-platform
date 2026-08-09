@@ -7,7 +7,18 @@ import { PropertyCard } from "./PropertyCard";
 import { KakaoMap, type MapMarker } from "./KakaoMap";
 import type { Locale } from "@/i18n/routing";
 import { formatKrwCompact } from "@/lib/format";
+import { publicImageUrl } from "@/lib/storage";
 import type { PropertyWithRelations } from "@/lib/types/database";
+
+/** Cover photo if the host set one, else the first uploaded photo. */
+function coverUrl(property: PropertyWithRelations): string | null {
+  const images = property.property_images ?? [];
+  if (images.length === 0) return null;
+  const cover =
+    images.find((i) => i.is_cover) ??
+    [...images].sort((a, b) => a.sort_order - b.sort_order)[0];
+  return cover ? publicImageUrl(cover.storage_path) : null;
+}
 
 /**
  * Airbnb-style split: scrollable results on the left, map on the right.
@@ -91,7 +102,7 @@ export function SearchResults({
               property={property}
               isActive={activeId === property.id}
               onHover={setActiveId}
-              imageUrl={null}
+              imageUrl={coverUrl(property)}
             />
           ))}
         </div>

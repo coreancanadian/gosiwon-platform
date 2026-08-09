@@ -135,9 +135,8 @@ scripts/                 Excel importer + column alias map
 
 ## Known gaps
 
-- **Listing photos are not yet wired to the public pages' hero** — hosts can
-  upload via the dashboard, but the seeded demo listings have none, so the
-  gallery shows an empty state.
+- **Seeded demo listings have no photos**, so the gallery shows its empty state
+  until you upload via the dashboard or import real images.
 - **Region and subway tiles use generated gradients**, not photography. Drop a
   JPG at `public/images/regions/<slug>.jpg` and set `image_url` on the row.
 - **Room names are single-language.** The `rooms` table has one `name` column,

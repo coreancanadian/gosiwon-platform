@@ -16,6 +16,7 @@ import {
   upsertRoom,
 } from "@/lib/actions/properties";
 import { AMENITY_CATEGORY_ORDER } from "@/lib/data/seed-amenities";
+import { publicImageUrl } from "@/lib/storage";
 import type {
   Amenity,
   PropertyWithRelations,
@@ -361,12 +362,6 @@ function PhotosSection({ property }: { property: PropertyWithRelations }) {
     });
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const publicUrl = (path: string) =>
-    /^https?:\/\//.test(path)
-      ? path
-      : `${supabaseUrl}/storage/v1/object/public/property-images/${path}`;
-
   return (
     <div>
       <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-ink-300 px-4 py-2.5 text-sm font-medium text-ink-700 transition hover:bg-ink-50">
@@ -392,7 +387,7 @@ function PhotosSection({ property }: { property: PropertyWithRelations }) {
         {property.property_images.map((image) => (
           <div key={image.id} className="group relative aspect-[4/3] overflow-hidden rounded-xl bg-ink-100">
             <Image
-              src={publicUrl(image.storage_path)}
+              src={publicImageUrl(image.storage_path)}
               alt=""
               fill
               sizes="200px"

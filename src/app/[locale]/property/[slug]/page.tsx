@@ -23,6 +23,7 @@ import { ContactHostCard } from "@/components/ContactHostCard";
 import { KakaoMap } from "@/components/KakaoMap";
 import type { Locale } from "@/i18n/routing";
 import { formatKrw, formatSqm } from "@/lib/format";
+import { publicImageUrl } from "@/lib/storage";
 import type { PropertyWithRelations } from "@/lib/types/database";
 
 type Props = { params: Promise<{ locale: string; slug: string }> };
@@ -87,7 +88,7 @@ export default async function PropertyPage({ params }: Props) {
   const images: GalleryImage[] = [...property.property_images]
     .sort((a, b) => Number(b.is_cover) - Number(a.is_cover) || a.sort_order - b.sort_order)
     .map((img) => ({
-      url: img.storage_path,
+      url: publicImageUrl(img.storage_path),
       alt: (isKo ? img.alt_ko : img.alt_en) ?? name,
     }));
 
