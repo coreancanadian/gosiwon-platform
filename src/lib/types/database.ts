@@ -5,7 +5,26 @@
  *   npx supabase gen types typescript --project-id <ref> > src/lib/types/database.ts
  */
 
-export type PropertyType = "gosiwon" | "share_house" | "one_room" | "dormitory";
+export type PropertyType =
+  | "gosiwon" // 고시원
+  | "oneroomtel" // 원룸텔
+  | "share_house" // 쉐어하우스
+  | "coliving" // 코리빙하우스
+  | "one_room" // 원･투룸
+  | "officetel" // 오피스텔
+  | "dormitory"; // 기숙사
+
+/**
+ * The distinction renters shop on: your own lockable room vs a house shared
+ * with housemates. Generated in Postgres from property_type, so it can't drift.
+ */
+export type HousingCategory = "private" | "shared";
+
+export const SHARED_TYPES: PropertyType[] = ["share_house", "coliving", "dormitory"];
+
+export function housingCategoryOf(type: PropertyType): HousingCategory {
+  return SHARED_TYPES.includes(type) ? "shared" : "private";
+}
 export type GenderPolicy = "any" | "male" | "female";
 export type InquiryStatus = "pending" | "accepted" | "declined" | "closed";
 export type UserRole = "tenant" | "owner" | "admin";
@@ -94,11 +113,17 @@ export type Property = {
   lat: number | null;
   lng: number | null;
   property_type: PropertyType;
+  /** Generated column — never write to this. */
+  housing_category: HousingCategory;
   gender: GenderPolicy;
   age_min: number | null;
   age_max: number | null;
   floors_total: number | null;
   floors_used: string | null;
+  building_type: string | null;
+  nearby_universities: string[];
+  video_url: string | null;
+  external_id: string | null;
   languages: string[];
   description_ko: string | null;
   description_en: string | null;

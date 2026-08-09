@@ -8,8 +8,10 @@ import {
   Languages,
   MapPin,
   TrainFront,
+  GraduationCap,
   Ruler,
   Wallet,
+  CirclePlay,
 } from "lucide-react";
 import {
   getPropertyBySlug,
@@ -24,7 +26,10 @@ import { KakaoMap } from "@/components/KakaoMap";
 import type { Locale } from "@/i18n/routing";
 import { formatKrw, formatSqm } from "@/lib/format";
 import { publicImageUrl } from "@/lib/storage";
-import type { PropertyWithRelations } from "@/lib/types/database";
+import {
+  housingCategoryOf,
+  type PropertyWithRelations,
+} from "@/lib/types/database";
 
 type Props = { params: Promise<{ locale: string; slug: string }> };
 
@@ -108,6 +113,17 @@ export default async function PropertyPage({ params }: Props) {
         {/* ---------------- Main column ---------------- */}
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
+            {/* Private vs shared reads first — it's the biggest difference
+                between a 고시원 and a 셰어하우스. */}
+            <span
+              className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                housingCategoryOf(property.property_type) === "shared"
+                  ? "bg-emerald-100 text-emerald-800"
+                  : "bg-sky-100 text-sky-800"
+              }`}
+            >
+              {tEnum(`housingCategory.${housingCategoryOf(property.property_type)}`)}
+            </span>
             <span className="rounded-full bg-ink-100 px-2.5 py-1 text-xs font-medium text-ink-600">
               {tEnum(`propertyType.${property.property_type}`)}
             </span>
@@ -168,6 +184,13 @@ export default async function PropertyPage({ params }: Props) {
                   .join(" · ")}
               />
             ) : null}
+            {property.nearby_universities.length > 0 ? (
+              <Fact
+                icon={GraduationCap}
+                label={t("nearbyUniversities")}
+                value={property.nearby_universities.join(" · ")}
+              />
+            ) : null}
           </div>
 
           {description ? (
@@ -178,10 +201,25 @@ export default async function PropertyPage({ params }: Props) {
               <p className="mt-3 text-[15px] leading-relaxed whitespace-pre-line text-ink-600">
                 {description}
               </p>
+
+              {property.video_url ? (
+                <a
+                  href={property.video_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-4 inline-flex items-center gap-2 rounded-lg border border-ink-300 px-4 py-2.5 text-sm font-medium text-ink-800 transition hover:bg-ink-50"
+                >
+                  <CirclePlay className="h-4 w-4 text-brand-500" aria-hidden />
+                  {t("watchVideo")}
+                </a>
+              ) : null}
             </section>
           ) : null}
 
-          {/* ---------------- Rooms ---------------- */}
+          {/* ---------------- Rooms ----------------
+              Only rendered when the host has itemised rooms. Imported listings
+              carry a rent range on the property instead. */}
+          {property.rooms.length > 0 ? (
           <section id="rooms" className="scroll-mt-20 border-b border-ink-200 py-8">
             <h2 className="text-xl font-semibold tracking-tight text-ink-900">
               {t("rooms")}
@@ -241,6 +279,7 @@ export default async function PropertyPage({ params }: Props) {
                 ))}
             </div>
           </section>
+          ) : null}
 
           <AmenitySection amenities={amenities} slugs={amenitySlugs} />
 

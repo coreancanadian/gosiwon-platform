@@ -6,7 +6,10 @@ import { Users, Home as HomeIcon, MapPin } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { formatPriceRange } from "@/lib/format";
-import type { PropertyWithRelations } from "@/lib/types/database";
+import {
+  housingCategoryOf,
+  type PropertyWithRelations,
+} from "@/lib/types/database";
 
 export function PropertyCard({
   property,
@@ -61,6 +64,15 @@ export function PropertyCard({
 
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex flex-wrap items-center gap-1.5">
+          <span
+            className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+              housingCategoryOf(property.property_type) === "shared"
+                ? "bg-emerald-100 text-emerald-800"
+                : "bg-sky-100 text-sky-800"
+            }`}
+          >
+            {tEnum(`housingCategory.${housingCategoryOf(property.property_type)}`)}
+          </span>
           <span className="rounded-full bg-ink-100 px-2 py-0.5 text-[11px] font-medium text-ink-600">
             {tEnum(`propertyType.${property.property_type}`)}
           </span>
@@ -88,7 +100,7 @@ export function PropertyCard({
               <span className="text-xs text-ink-500">{t("perMonth")}</span>
             </>
           ) : null}
-          {availableRooms > 0 ? (
+          {property.rooms.length === 0 ? null : availableRooms > 0 ? (
             <span className="ml-auto text-xs text-ink-400">
               {t("roomsAvailable", { count: availableRooms })}
             </span>

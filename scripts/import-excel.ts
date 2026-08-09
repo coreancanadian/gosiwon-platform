@@ -1,40 +1,43 @@
 /**
- * Import 고시원 / 셰어하우스 listings from Excel into Supabase.
+ * Import 고시원 / 원룸텔 / 셰어하우스 listings from the source spreadsheets.
  *
- *   npm run import -- --dir ./data --dry-run
- *   npm run import -- --dir ./data --owner <profile-uuid>
+ *   npm run import -- --dir "./room files" --dry-run
+ *   npm run import -- --dir "./room files" --owner <profile-uuid>
  *
  * Flags:
- *   --dir <path>     Directory of .xlsx/.xls/.csv files (default ./data)
- *   --file <path>    Import a single file instead of a directory
- *   --owner <uuid>   profiles.id to assign every imported listing to (required
- *                    unless --dry-run)
- *   --dry-run        Parse, geocode-check and report; write nothing
+ *   --dir <path>     Directory of .xlsx/.xls/.csv files (default "./room files")
+ *   --owner <uuid>   profiles.id every imported listing is assigned to
+ *                    (required unless --dry-run)
+ *   --dry-run        Parse and report; write nothing
  *   --publish        Mark imported listings published (default: draft)
+ *   --geocode        Resolve 위치 to coordinates via Kakao (needs KAKAO_REST_API_KEY)
+ *   --limit <n>      Import only the first n listings (useful for a trial run)
  *
- * Env (.env.local):
- *   NEXT_PUBLIC_SUPABASE_URL
- *   SUPABASE_SERVICE_ROLE_KEY   server-only; bypasses RLS, never expose to the browser
- *   KAKAO_REST_API_KEY          optional; enables address -> lat/lng geocoding
+ * Each source row is ONE listing carrying a min/max rent range, not a per-room
+ * price, so rooms are left empty for the host to fill in later and
+ * properties.price_min/max are set directly.
  *
- * Rows sharing the same (name + address) are treated as one property with
- * multiple rooms, which is how these spreadsheets are usually laid out.
+ * Re-running is idempotent: listings are upserted on external_id (아이디).
  */
-import { readdir, stat } from "node:fs/promises";
+import { readdir } from "node:fs/promises";
 import { join, extname, basename } from "node:path";
 import ExcelJS from "exceljs";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { config as loadEnv } from "dotenv";
 import {
-  matchHeader,
+  AMENITY_SLUG_BY_TOKEN,
+  HEATING_SLUG_BY_VALUE,
+  manwonToKrw,
+  matchRegionSlug,
+  normalizeAmenityToken,
+  parseAllPropertyTypes,
+  parseFloors,
   parseGender,
-  parseInteger,
-  parseKrw,
-  parseList,
   parsePropertyType,
-  parseSqm,
-  type TargetField,
-} from "./column-map";
+  parseStations,
+  parseUniversities,
+  type PropertyType,
+} from "./source-map";
 
 loadEnv({ path: ".env.local" });
 loadEnv({ path: ".env" });
@@ -42,392 +45,445 @@ loadEnv({ path: ".env" });
 // ---------------------------------------------------------------------------
 // CLI
 // ---------------------------------------------------------------------------
-
-function getFlag(name: string): string | undefined {
+const flag = (name: string): string | undefined => {
   const i = process.argv.indexOf(`--${name}`);
   return i !== -1 ? process.argv[i + 1] : undefined;
-}
-const hasFlag = (name: string) => process.argv.includes(`--${name}`);
+};
+const has = (name: string) => process.argv.includes(`--${name}`);
 
-const DIR = getFlag("dir") ?? "./data";
-const FILE = getFlag("file");
-const OWNER_ID = getFlag("owner");
-const DRY_RUN = hasFlag("dry-run");
-const PUBLISH = hasFlag("publish");
+const DIR = flag("dir") ?? "./room files";
+const OWNER_ID = flag("owner");
+const DRY_RUN = has("dry-run");
+const PUBLISH = has("publish");
+const GEOCODE = has("geocode");
+const LIMIT = flag("limit") ? parseInt(flag("limit")!, 10) : Infinity;
 
 // ---------------------------------------------------------------------------
-// Types
+// Source columns (header text -> our field). All four files share this schema;
+// two files add 번호 and "English 업체명", which is why we match by header text
+// rather than by position.
 // ---------------------------------------------------------------------------
+const COLUMNS = {
+  external_id: "아이디",
+  name_ko: "업체명",
+  name_en: "English 업체명",
+  location: "위치",
+  stations: "근처 지하철",
+  universities: "근처 대학교",
+  type: "주거형태",
+  deposit: "보증금(만원)",
+  rent_min: "월세(최소)",
+  rent_max: "월세(최대)",
+  gender: "남녀구분",
+  description: "지점소개",
+  video: "소개영상",
+  floors: "층 정보",
+  building: "건물형태",
+  parking: "주차",
+  elevator: "엘리베이터",
+  heating: "난방시설",
+} as const;
 
-type RawRow = Partial<Record<TargetField, string | number | null>>;
+const FACILITY_COLUMNS = [
+  "세탁시설",
+  "청결시설",
+  "주방시설",
+  "생활시설",
+  "안전시설",
+  "제공 비품",
+] as const;
 
-interface ParsedRoom {
-  name: string;
-  monthly_rent: number;
-  deposit: number;
-  size_sqm: number | null;
-  min_contract_days: number | null;
-}
-
-interface ParsedProperty {
+interface ParsedListing {
+  external_id: string | null;
   name_ko: string;
   name_en: string | null;
   address_ko: string;
-  address_en: string | null;
-  address_detail: string | null;
-  postal_code: string | null;
-  property_type: ReturnType<typeof parsePropertyType>;
-  gender: ReturnType<typeof parseGender>;
-  age_min: number | null;
-  age_max: number | null;
+  regionSlug: string | null;
+  property_type: PropertyType;
+  allTypes: PropertyType[];
+  gender: "any" | "male" | "female";
+  separatedFloors: boolean;
+  deposit: number | null;
+  price_min: number | null;
+  price_max: number | null;
+  description_ko: string | null;
+  video_url: string | null;
   floors_total: number | null;
   floors_used: string | null;
-  languages: string[];
-  description_ko: string | null;
-  description_en: string | null;
-  lat: number | null;
-  lng: number | null;
-  amenityNames: string[];
-  rooms: ParsedRoom[];
+  building_type: string | null;
+  nearby_universities: string[];
+  stationNames: string[];
+  amenitySlugs: Set<string>;
   sourceFile: string;
+  /** Filled in by --geocode; the source has no coordinates. */
+  lat?: number | null;
+  lng?: number | null;
 }
 
 // ---------------------------------------------------------------------------
-// Reading
+// Cell reading
 // ---------------------------------------------------------------------------
-
-const str = (v: unknown): string | null => {
-  if (v == null) return null;
-  // ExcelJS returns rich-text and formula cells as objects.
+const cell = (v: unknown): string => {
+  if (v == null) return "";
   if (typeof v === "object") {
-    const o = v as { text?: string; result?: unknown; richText?: Array<{ text: string }> };
-    if (typeof o.text === "string") return o.text.trim() || null;
-    if (o.richText) return o.richText.map((r) => r.text).join("").trim() || null;
-    if (o.result != null) return String(o.result).trim() || null;
-    return null;
+    const o = v as {
+      text?: string;
+      result?: unknown;
+      richText?: Array<{ text: string }>;
+      hyperlink?: string;
+    };
+    if (o.richText) return o.richText.map((r) => r.text).join("").trim();
+    if (typeof o.text === "string") return o.text.trim();
+    if (o.hyperlink) return o.hyperlink.trim();
+    if (o.result != null) return String(o.result).trim();
+    if (v instanceof Date) return v.toISOString().slice(0, 10);
+    return "";
   }
-  const s = String(v).trim();
-  return s || null;
+  return String(v).trim();
 };
 
-async function readWorkbookRows(
-  filePath: string,
-): Promise<{ rows: RawRow[]; unmapped: Set<string> }> {
-  const workbook = new ExcelJS.Workbook();
-  const ext = extname(filePath).toLowerCase();
+const nullIfEmpty = (s: string): string | null => (s ? s : null);
 
-  if (ext === ".csv") await workbook.csv.readFile(filePath);
-  else await workbook.xlsx.readFile(filePath);
+// ---------------------------------------------------------------------------
+// Parsing
+// ---------------------------------------------------------------------------
+const unmappedAmenityTokens = new Map<string, number>();
 
-  const rows: RawRow[] = [];
-  const unmapped = new Set<string>();
+function parseSheet(
+  sheet: ExcelJS.Worksheet,
+  sourceFile: string,
+  seenIds: Set<string>,
+): ParsedListing[] {
+  // Locate the header row. One file has a "Table 1" banner above it.
+  let headerRow = 0;
+  let headers: string[] = [];
+  for (let r = 1; r <= Math.min(sheet.rowCount, 10); r++) {
+    const values = (sheet.getRow(r).values as unknown[]).slice(1).map(cell);
+    if (values.includes(COLUMNS.name_ko) && values.includes(COLUMNS.location)) {
+      headerRow = r;
+      headers = values;
+      break;
+    }
+  }
+  if (!headerRow) return [];
 
-  workbook.eachSheet((sheet) => {
-    // Find the header row: the first row where at least two cells map.
-    let headerRowNumber = 0;
-    let mapping: Array<TargetField | null> = [];
+  const at = (values: string[], header: string): string => {
+    const i = headers.indexOf(header);
+    return i >= 0 ? (values[i] ?? "") : "";
+  };
 
-    for (let r = 1; r <= Math.min(sheet.rowCount, 20); r++) {
-      const candidate = sheet.getRow(r);
-      const headers = (candidate.values as unknown[]).slice(1).map((v) => str(v) ?? "");
-      const matched = headers.map((h) => (h ? matchHeader(h) : null));
-      if (matched.filter(Boolean).length >= 2) {
-        headerRowNumber = r;
-        mapping = matched;
-        headers.forEach((h, i) => {
-          if (h && !matched[i]) unmapped.add(h);
-        });
-        break;
+  const listings: ParsedListing[] = [];
+
+  for (let r = headerRow + 1; r <= sheet.rowCount; r++) {
+    const values = (sheet.getRow(r).values as unknown[]).slice(1).map(cell);
+    if (!values.some((v) => v)) continue;
+
+    const externalId = at(values, COLUMNS.external_id);
+    // The same listing appears in both sheets of one workbook.
+    if (externalId) {
+      if (seenIds.has(externalId)) continue;
+      seenIds.add(externalId);
+    }
+
+    const name = at(values, COLUMNS.name_ko);
+    const location = at(values, COLUMNS.location);
+    if (!name || !location) continue;
+
+    const { gender, separatedFloors } = parseGender(at(values, COLUMNS.gender));
+    const { total, used } = parseFloors(at(values, COLUMNS.floors));
+
+    // Facility columns -> amenity slugs.
+    const amenitySlugs = new Set<string>();
+    for (const col of FACILITY_COLUMNS) {
+      const raw = at(values, col);
+      if (!raw) continue;
+      for (const token of raw.split(/\s+/).filter(Boolean)) {
+        const normalized = normalizeAmenityToken(token);
+        if (!normalized) continue;
+        const slug = AMENITY_SLUG_BY_TOKEN[normalized];
+        if (slug) amenitySlugs.add(slug);
+        else
+          unmappedAmenityTokens.set(
+            normalized,
+            (unmappedAmenityTokens.get(normalized) ?? 0) + 1,
+          );
       }
     }
 
-    if (!headerRowNumber) {
-      console.warn(`  ⚠︎ ${sheet.name}: no recognisable header row, skipped`);
-      return;
-    }
+    // Single-value columns that are really amenity flags.
+    const heatingSlug = HEATING_SLUG_BY_VALUE[at(values, COLUMNS.heating)];
+    if (heatingSlug) amenitySlugs.add(heatingSlug);
+    if (at(values, COLUMNS.parking) === "가능") amenitySlugs.add("parking");
+    if (at(values, COLUMNS.elevator).startsWith("있음")) amenitySlugs.add("elevator");
+    if (separatedFloors) amenitySlugs.add("female-only-floor");
 
-    for (let r = headerRowNumber + 1; r <= sheet.rowCount; r++) {
-      const values = (sheet.getRow(r).values as unknown[]).slice(1);
-      if (values.every((v) => str(v) == null)) continue;
+    const video = at(values, COLUMNS.video);
+    const description = at(values, COLUMNS.description);
 
-      const row: RawRow = {};
-      mapping.forEach((field, i) => {
-        if (!field) return;
-        const raw = values[i];
-        // Keep numbers as numbers so parseKrw can apply its 만원 heuristic.
-        row[field] = typeof raw === "number" ? raw : str(raw);
-      });
-      if (row.name_ko || row.address_ko) rows.push(row);
-    }
-  });
-
-  return { rows, unmapped };
-}
-
-// ---------------------------------------------------------------------------
-// Grouping
-// ---------------------------------------------------------------------------
-
-function groupRows(rows: RawRow[], sourceFile: string): ParsedProperty[] {
-  const byKey = new Map<string, ParsedProperty>();
-
-  for (const row of rows) {
-    const name = str(row.name_ko);
-    const address = str(row.address_ko);
-    if (!name || !address) continue;
-
-    const key = `${name}|${address}`;
-    let property = byKey.get(key);
-
-    if (!property) {
-      property = {
-        name_ko: name,
-        name_en: str(row.name_en),
-        address_ko: address,
-        address_en: str(row.address_en),
-        address_detail: str(row.address_detail),
-        postal_code: str(row.postal_code),
-        property_type: parsePropertyType(str(row.property_type)),
-        gender: parseGender(str(row.gender)),
-        age_min: parseInteger(row.age_min ?? null),
-        age_max: parseInteger(row.age_max ?? null),
-        floors_total: parseInteger(row.floors_total ?? null),
-        floors_used: str(row.floors_used),
-        languages: parseList(str(row.languages)),
-        description_ko: str(row.description_ko),
-        description_en: str(row.description_en),
-        lat: row.lat != null ? Number(row.lat) || null : null,
-        lng: row.lng != null ? Number(row.lng) || null : null,
-        amenityNames: parseList(str(row.amenities)),
-        rooms: [],
-        sourceFile,
-      };
-      byKey.set(key, property);
-    }
-
-    const rent = parseKrw(row.monthly_rent ?? null);
-    if (rent != null) {
-      property.rooms.push({
-        name: str(row.room_name) ?? `ROOM ${property.rooms.length + 1}`,
-        monthly_rent: rent,
-        deposit: parseKrw(row.deposit ?? null) ?? 0,
-        size_sqm: parseSqm(row.size_sqm ?? null),
-        min_contract_days: parseInteger(row.min_contract_days ?? null) ?? 30,
-      });
-    }
+    listings.push({
+      external_id: nullIfEmpty(externalId),
+      name_ko: name,
+      name_en: nullIfEmpty(at(values, COLUMNS.name_en)),
+      address_ko: location,
+      regionSlug: matchRegionSlug(location),
+      property_type: parsePropertyType(at(values, COLUMNS.type)),
+      allTypes: parseAllPropertyTypes(at(values, COLUMNS.type)),
+      gender,
+      separatedFloors,
+      deposit: manwonToKrw(at(values, COLUMNS.deposit)),
+      price_min: manwonToKrw(at(values, COLUMNS.rent_min)),
+      price_max: manwonToKrw(at(values, COLUMNS.rent_max)),
+      description_ko: nullIfEmpty(description),
+      // One file duplicates 지점소개 into 소개영상; only keep real URLs.
+      video_url: /^https?:\/\//.test(video) ? video : null,
+      floors_total: total,
+      floors_used: used,
+      building_type: nullIfEmpty(at(values, COLUMNS.building)),
+      nearby_universities: parseUniversities(at(values, COLUMNS.universities)),
+      stationNames: parseStations(at(values, COLUMNS.stations)),
+      amenitySlugs,
+      sourceFile,
+    });
   }
 
-  return [...byKey.values()];
+  return listings;
 }
 
 // ---------------------------------------------------------------------------
-// Geocoding (Kakao Local API)
+// Geocoding
 // ---------------------------------------------------------------------------
-
 const KAKAO_KEY = process.env.KAKAO_REST_API_KEY;
 
-async function geocode(
-  address: string,
-): Promise<{ lat: number; lng: number } | null> {
+async function geocode(address: string): Promise<{ lat: number; lng: number } | null> {
   if (!KAKAO_KEY) return null;
-
   const url = `https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(address)}`;
-  const response = await fetch(url, {
-    headers: { Authorization: `KakaoAK ${KAKAO_KEY}` },
-  });
-
-  if (!response.ok) {
-    console.warn(`  ⚠︎ geocode ${response.status} for "${address}"`);
-    return null;
-  }
-
-  const data = (await response.json()) as {
-    documents: Array<{ x: string; y: string }>;
-  };
+  const res = await fetch(url, { headers: { Authorization: `KakaoAK ${KAKAO_KEY}` } });
+  if (!res.ok) return null;
+  const data = (await res.json()) as { documents: Array<{ x: string; y: string }> };
   const hit = data.documents?.[0];
   // Kakao returns x = longitude, y = latitude.
   return hit ? { lat: parseFloat(hit.y), lng: parseFloat(hit.x) } : null;
 }
 
-function slugify(name: string): string {
-  const base = name
+function slugify(listing: ParsedListing): string {
+  const base = (listing.name_en || listing.name_ko)
     .trim()
     .toLowerCase()
     .replace(/[^\p{L}\p{N}]+/gu, "-")
     .replace(/^-+|-+$/g, "");
-  return `${base || "listing"}-${Math.random().toString(36).slice(2, 8)}`;
+  // external_id keeps the slug stable across re-imports.
+  const suffix = listing.external_id ?? Math.random().toString(36).slice(2, 8);
+  return `${base || "listing"}-${suffix}`;
+}
+
+// ---------------------------------------------------------------------------
+// Writing
+// ---------------------------------------------------------------------------
+async function write(listings: ParsedListing[], supabase: SupabaseClient) {
+  const [{ data: regions }, { data: amenities }, { data: stations }] =
+    await Promise.all([
+      supabase.from("regions").select("id, slug"),
+      supabase.from("amenities").select("id, slug"),
+      supabase.from("subway_stations").select("id, name_ko"),
+    ]);
+
+  const regionIdBySlug = new Map((regions ?? []).map((r) => [r.slug, r.id]));
+  const amenityIdBySlug = new Map((amenities ?? []).map((a) => [a.slug, a.id]));
+  const stationIdByName = new Map((stations ?? []).map((s) => [s.name_ko, s.id]));
+
+  let created = 0;
+  let failed = 0;
+  let amenityLinks = 0;
+  let stationLinks = 0;
+
+  for (const listing of listings) {
+    const { data: row, error } = await supabase
+      .from("properties")
+      .upsert(
+        {
+          owner_id: OWNER_ID,
+          external_id: listing.external_id,
+          slug: slugify(listing),
+          name_ko: listing.name_ko,
+          name_en: listing.name_en,
+          address_ko: listing.address_ko,
+          region_id: listing.regionSlug
+            ? (regionIdBySlug.get(listing.regionSlug) ?? null)
+            : null,
+          lat: listing.lat ?? null,
+          lng: listing.lng ?? null,
+          property_type: listing.property_type,
+          gender: listing.gender,
+          floors_total: listing.floors_total,
+          floors_used: listing.floors_used,
+          building_type: listing.building_type,
+          nearby_universities: listing.nearby_universities,
+          video_url: listing.video_url,
+          description_ko: listing.description_ko,
+          price_min: listing.price_min,
+          price_max: listing.price_max,
+          is_published: PUBLISH,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "external_id" },
+      )
+      .select("id")
+      .single();
+
+    if (error || !row) {
+      console.error(`  ✗ ${listing.name_ko}: ${error?.message}`);
+      failed++;
+      continue;
+    }
+
+    // Replace the amenity set so re-imports stay clean.
+    const amenityIds = [...listing.amenitySlugs]
+      .map((s) => amenityIdBySlug.get(s))
+      .filter((id): id is string => Boolean(id));
+
+    await supabase.from("property_amenities").delete().eq("property_id", row.id);
+    if (amenityIds.length > 0) {
+      await supabase
+        .from("property_amenities")
+        .insert(amenityIds.map((amenity_id) => ({ property_id: row.id, amenity_id })));
+      amenityLinks += amenityIds.length;
+    }
+
+    // Only stations we actually have a row for (the 10 featured ones today).
+    const stationIds = listing.stationNames
+      .map((n) => stationIdByName.get(n))
+      .filter((id): id is string => Boolean(id));
+
+    if (stationIds.length > 0) {
+      await supabase.from("property_subway").delete().eq("property_id", row.id);
+      await supabase.from("property_subway").insert(
+        [...new Set(stationIds)].map((station_id) => ({
+          property_id: row.id,
+          station_id,
+          walk_minutes: null,
+        })),
+      );
+      stationLinks += stationIds.length;
+    }
+
+    created++;
+    if (created % 200 === 0) console.log(`  …${created}/${listings.length}`);
+  }
+
+  console.log(`\n✓ Imported ${created} listing(s)${failed ? `, ${failed} failed` : ""}`);
+  console.log(`  amenity links: ${amenityLinks}`);
+  console.log(`  station links: ${stationLinks}`);
+  console.log(
+    PUBLISH ? `  They are live.` : `  They are drafts — publish from the dashboard.`,
+  );
 }
 
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
-
 async function main() {
-  let files: string[] = [];
-
-  if (FILE) {
-    files = [FILE];
-  } else {
-    const dirStat = await stat(DIR).catch(() => null);
-    if (!dirStat?.isDirectory()) {
-      console.error(`✗ Not a directory: ${DIR}`);
-      console.error(`  Put your .xlsx files there, or pass --dir <path>.`);
-      process.exit(1);
-    }
-    files = (await readdir(DIR))
-      .filter((f) => [".xlsx", ".xls", ".csv"].includes(extname(f).toLowerCase()))
-      .filter((f) => !f.startsWith("~$")) // Excel lock files
-      .map((f) => join(DIR, f));
-  }
+  const files = (await readdir(DIR))
+    .filter((f) => [".xlsx", ".xls", ".csv"].includes(extname(f).toLowerCase()))
+    .filter((f) => !f.startsWith("~$"))
+    .map((f) => join(DIR, f));
 
   if (files.length === 0) {
     console.error(`✗ No spreadsheets found in ${DIR}`);
     process.exit(1);
   }
 
-  console.log(`Found ${files.length} file(s)\n`);
-
-  const all: ParsedProperty[] = [];
-  const allUnmapped = new Set<string>();
+  const seenIds = new Set<string>();
+  const all: ParsedListing[] = [];
 
   for (const file of files) {
-    console.log(`▸ ${basename(file)}`);
-    const { rows, unmapped } = await readWorkbookRows(file);
-    unmapped.forEach((u) => allUnmapped.add(u));
+    const wb = new ExcelJS.Workbook();
+    if (extname(file).toLowerCase() === ".csv") await wb.csv.readFile(file);
+    else await wb.xlsx.readFile(file);
 
-    const properties = groupRows(rows, basename(file));
-    console.log(`  ${rows.length} rows → ${properties.length} listings`);
-    all.push(...properties);
+    let fileCount = 0;
+    wb.eachSheet((sheet) => {
+      const parsed = parseSheet(sheet, basename(file), seenIds);
+      all.push(...parsed);
+      fileCount += parsed.length;
+    });
+    console.log(`▸ ${basename(file).padEnd(26)} ${fileCount} listings`);
   }
 
-  if (allUnmapped.size > 0) {
-    console.log(`\n⚠︎ Unmapped columns (add to scripts/column-map.ts to import):`);
-    [...allUnmapped].sort().forEach((h) => console.log(`    "${h}"`));
-  }
+  const listings = all.slice(0, LIMIT);
 
-  // Geocode anything missing coordinates.
-  const needGeocode = all.filter((p) => p.lat == null || p.lng == null);
-  if (needGeocode.length > 0) {
-    if (!KAKAO_KEY) {
-      console.log(
-        `\n⚠︎ ${needGeocode.length} listing(s) lack coordinates and KAKAO_REST_API_KEY is unset.`,
-      );
-      console.log(`   They will import without map pins.`);
-    } else {
-      console.log(`\nGeocoding ${needGeocode.length} address(es)…`);
-      for (const property of needGeocode) {
-        const result = await geocode(property.address_ko);
-        if (result) {
-          property.lat = result.lat;
-          property.lng = result.lng;
-        }
-        // Kakao's default quota is generous but not unlimited; be polite.
-        await new Promise((r) => setTimeout(r, 120));
-      }
-      const stillMissing = all.filter((p) => p.lat == null).length;
-      console.log(`  ${needGeocode.length - stillMissing} resolved, ${stillMissing} failed`);
-    }
-  }
+  // ---- Report ----
+  const byType = new Map<string, number>();
+  listings.forEach((l) => byType.set(l.property_type, (byType.get(l.property_type) ?? 0) + 1));
 
-  const totalRooms = all.reduce((sum, p) => sum + p.rooms.length, 0);
+  const shared = listings.filter((l) =>
+    ["share_house", "coliving", "dormitory"].includes(l.property_type),
+  ).length;
+
   console.log(`\n── Summary ──`);
-  console.log(`  Listings: ${all.length}`);
-  console.log(`  Rooms:    ${totalRooms}`);
-  console.log(`  Geocoded: ${all.filter((p) => p.lat != null).length}/${all.length}`);
+  console.log(`  Listings:        ${listings.length}`);
+  console.log(`  Private room:    ${listings.length - shared}`);
+  console.log(`  Shared living:   ${shared}`);
+  console.log(`\n  By type:`);
+  [...byType.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .forEach(([t, n]) => console.log(`    ${String(n).padStart(5)}  ${t}`));
+
+  console.log(`\n  Mapped to a home-page region: ${listings.filter((l) => l.regionSlug).length}`);
+  console.log(`  With rent range:              ${listings.filter((l) => l.price_min != null).length}`);
+  console.log(`  With description:             ${listings.filter((l) => l.description_ko).length}`);
+  console.log(`  With video:                   ${listings.filter((l) => l.video_url).length}`);
+  console.log(`  With universities:            ${listings.filter((l) => l.nearby_universities.length).length}`);
+  console.log(`  With subway names:            ${listings.filter((l) => l.stationNames.length).length}`);
+  const avgAmenities =
+    listings.reduce((s, l) => s + l.amenitySlugs.size, 0) / (listings.length || 1);
+  console.log(`  Avg amenities/listing:        ${avgAmenities.toFixed(1)}`);
+
+  if (unmappedAmenityTokens.size > 0) {
+    console.log(`\n⚠︎ Unmapped facility tokens (add to scripts/source-map.ts):`);
+    [...unmappedAmenityTokens.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .forEach(([t, n]) => console.log(`    ${String(n).padStart(5)}  ${t}`));
+  }
+
+  if (GEOCODE && KAKAO_KEY) {
+    console.log(`\nGeocoding ${listings.length} address(es)…`);
+    let ok = 0;
+    for (const listing of listings) {
+      const result = await geocode(listing.address_ko);
+      if (result) {
+        listing.lat = result.lat;
+        listing.lng = result.lng;
+        ok++;
+      }
+      await new Promise((r) => setTimeout(r, 110));
+    }
+    console.log(`  ${ok}/${listings.length} resolved`);
+  } else if (GEOCODE) {
+    console.log(`\n⚠︎ --geocode given but KAKAO_REST_API_KEY is unset; skipping.`);
+  }
 
   if (DRY_RUN) {
-    console.log(`\n[dry run] Nothing written. Sample of the first listing:\n`);
-    console.dir(all[0], { depth: 4 });
+    console.log(`\n[dry run] Nothing written. First listing:\n`);
+    const { amenitySlugs, ...rest } = listings[0];
+    console.dir({ ...rest, amenitySlugs: [...amenitySlugs] }, { depth: 3 });
     return;
   }
 
-  // ---- Write ----
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
   if (!url || !serviceKey) {
-    console.error(
-      `\n✗ NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set to write.`,
-    );
-    console.error(`  Re-run with --dry-run to inspect the parse without writing.`);
+    console.error(`\n✗ NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required to write.`);
     process.exit(1);
   }
   if (!OWNER_ID) {
-    console.error(`\n✗ --owner <profile-uuid> is required (the host these listings belong to).`);
+    console.error(`\n✗ --owner <profile-uuid> is required.`);
     process.exit(1);
   }
 
-  const supabase = createClient(url, serviceKey, {
-    auth: { persistSession: false },
-  });
-
-  // Resolve amenity names to ids once.
-  const { data: amenityRows } = await supabase
-    .from("amenities")
-    .select("id, slug, name_ko, name_en");
-  const amenityByName = new Map<string, string>();
-  (amenityRows ?? []).forEach((a) => {
-    [a.slug, a.name_ko, a.name_en].forEach((n) => {
-      if (n) amenityByName.set(String(n).toLowerCase().replace(/\s/g, ""), a.id);
-    });
-  });
-
-  let created = 0;
-  let failed = 0;
-
-  for (const property of all) {
-    const { amenityNames, rooms, sourceFile, ...fields } = property;
-    void sourceFile;
-
-    const { data: inserted, error } = await supabase
-      .from("properties")
-      .insert({
-        ...fields,
-        owner_id: OWNER_ID,
-        slug: slugify(property.name_en || property.name_ko),
-        is_published: PUBLISH,
-      })
-      .select("id")
-      .single();
-
-    if (error || !inserted) {
-      console.error(`  ✗ ${property.name_ko}: ${error?.message}`);
-      failed++;
-      continue;
-    }
-
-    if (rooms.length > 0) {
-      const { error: roomError } = await supabase.from("rooms").insert(
-        rooms.map((room, i) => ({ ...room, property_id: inserted.id, sort_order: i })),
-      );
-      if (roomError) console.error(`  ⚠︎ ${property.name_ko} rooms: ${roomError.message}`);
-    }
-
-    const amenityIds = amenityNames
-      .map((n) => amenityByName.get(n.toLowerCase().replace(/\s/g, "")))
-      .filter((id): id is string => Boolean(id));
-
-    if (amenityIds.length > 0) {
-      await supabase.from("property_amenities").insert(
-        [...new Set(amenityIds)].map((amenity_id) => ({
-          property_id: inserted.id,
-          amenity_id,
-        })),
-      );
-    }
-
-    created++;
-  }
-
-  console.log(`\n✓ Imported ${created} listing(s)${failed ? `, ${failed} failed` : ""}`);
-  console.log(
-    PUBLISH
-      ? `  They are live.`
-      : `  They are drafts — publish from the host dashboard when ready.`,
-  );
+  await write(listings, createClient(url, serviceKey, { auth: { persistSession: false } }));
 }
 
-main().catch((error) => {
-  console.error(error);
+main().catch((e) => {
+  console.error(e);
   process.exit(1);
 });

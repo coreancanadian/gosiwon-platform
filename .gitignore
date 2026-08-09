@@ -46,3 +46,6 @@ next-env.d.ts
 
 # Listing spreadsheets — may contain owner PII
 /data
+
+# Source listing spreadsheets — contain business contact data
+/room files

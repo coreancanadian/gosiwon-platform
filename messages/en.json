@@ -87,6 +87,8 @@
     "unavailable": "Fully occupied",
     "priceFrom": "From {price}",
     "nearbyStations": "Nearby stations",
+    "nearbyUniversities": "Nearby universities",
+    "watchVideo": "Watch video tour",
     "addressCopied": "Address copied",
     "notFound": "Listing not found",
     "notFoundHint": "It may have been removed or unpublished."
@@ -99,9 +101,20 @@
     },
     "propertyType": {
       "gosiwon": "Gosiwon",
+      "oneroomtel": "Oneroomtel",
       "share_house": "Share house",
-      "one_room": "One room",
+      "coliving": "Co-living",
+      "one_room": "One/two room",
+      "officetel": "Officetel",
       "dormitory": "Dormitory"
+    },
+    "housingCategory": {
+      "private": "Private room",
+      "shared": "Shared living"
+    },
+    "housingCategoryHint": {
+      "private": "Your own lockable room (gosiwon, oneroomtel, one room)",
+      "shared": "A house shared with housemates (share house, co-living)"
     },
     "amenityCategory": {
       "living": "Living",

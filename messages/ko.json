@@ -87,6 +87,8 @@
     "unavailable": "만실",
     "priceFrom": "{price}부터",
     "nearbyStations": "인근 지하철역",
+    "nearbyUniversities": "인근 대학교",
+    "watchVideo": "소개 영상 보기",
     "addressCopied": "주소가 복사되었습니다",
     "notFound": "매물을 찾을 수 없습니다",
     "notFoundHint": "삭제되었거나 비공개 처리된 매물일 수 있습니다."
@@ -99,9 +101,20 @@
     },
     "propertyType": {
       "gosiwon": "고시원",
+      "oneroomtel": "원룸텔",
       "share_house": "셰어하우스",
-      "one_room": "원룸",
+      "coliving": "코리빙하우스",
+      "one_room": "원･투룸",
+      "officetel": "오피스텔",
       "dormitory": "기숙사"
+    },
+    "housingCategory": {
+      "private": "개인실",
+      "shared": "공유 주거"
+    },
+    "housingCategoryHint": {
+      "private": "잠금이 되는 나만의 방 (고시원·원룸텔·원룸)",
+      "shared": "하우스메이트와 함께 사는 집 (셰어하우스·코리빙)"
     },
     "amenityCategory": {
       "living": "생활",

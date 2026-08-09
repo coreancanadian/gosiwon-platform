@@ -1,4 +1,8 @@
-import type { GenderPolicy, PropertyType } from "@/lib/types/database";
+import type {
+  GenderPolicy,
+  HousingCategory,
+  PropertyType,
+} from "@/lib/types/database";
 
 /**
  * Shared by the client filter UI and the server-side search page.
@@ -25,11 +29,23 @@ export const PRICE_BANDS: PriceBand[] = [
 
 export const GENDERS: GenderPolicy[] = ["any", "male", "female"];
 
+/** Ordered by how common each type is in the catalogue. */
 export const PROPERTY_TYPES: PropertyType[] = [
   "gosiwon",
+  "oneroomtel",
   "share_house",
   "one_room",
+  "coliving",
+  "officetel",
   "dormitory",
 ];
+
+export const HOUSING_CATEGORIES: HousingCategory[] = ["private", "shared"];
+
+/** Which concrete types each category covers, for the SQL `in` filter. */
+export const TYPES_BY_CATEGORY: Record<HousingCategory, PropertyType[]> = {
+  private: ["gosiwon", "oneroomtel", "one_room", "officetel"],
+  shared: ["share_house", "coliving", "dormitory"],
+};
 
 export const SORTS = ["recommended", "price_asc", "price_desc", "newest"] as const;

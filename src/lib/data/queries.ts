@@ -2,14 +2,17 @@ import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import type {
-  Amenity,
-  GenderPolicy,
-  PropertyType,
-  PropertyWithRelations,
-  Region,
-  SubwayStation,
+import {
+  housingCategoryOf,
+  type Amenity,
+  type GenderPolicy,
+  type HousingCategory,
+  type PropertyType,
+  type PropertyWithRelations,
+  type Region,
+  type SubwayStation,
 } from "@/lib/types/database";
+import { TYPES_BY_CATEGORY } from "@/lib/search-bands";
 import { SEED_REGIONS, SEED_STATIONS } from "./seed-reference";
 import { SEED_AMENITIES } from "./seed-amenities";
 import { DEMO_PROPERTIES, type DemoProperty } from "./demo-properties";
@@ -86,6 +89,8 @@ export interface SearchFilters {
   q?: string;
   gender?: GenderPolicy;
   propertyType?: PropertyType;
+  /** Private room vs shared living. Ignored when propertyType is set. */
+  housingCategory?: HousingCategory;
   minPrice?: number;
   maxPrice?: number;
   sort?: "recommended" | "price_asc" | "price_desc" | "newest";
@@ -125,6 +130,10 @@ function applyDemoFilters(filters: SearchFilters): DemoProperty[] {
 
   if (filters.propertyType) {
     results = results.filter((p) => p.property_type === filters.propertyType);
+  } else if (filters.housingCategory) {
+    results = results.filter(
+      (p) => housingCategoryOf(p.property_type) === filters.housingCategory,
+    );
   }
 
   if (filters.minPrice != null) {
@@ -204,7 +213,13 @@ export async function searchProperties(
     query = query.in("gender", [filters.gender, "any"]);
   }
 
-  if (filters.propertyType) query = query.eq("property_type", filters.propertyType);
+  if (filters.propertyType) {
+    query = query.eq("property_type", filters.propertyType);
+  } else if (filters.housingCategory) {
+    // Filter on the concrete types rather than the generated column so this
+    // still works against a schema generated before migration 0005.
+    query = query.in("property_type", TYPES_BY_CATEGORY[filters.housingCategory]);
+  }
   if (filters.minPrice != null) query = query.gte("price_max", filters.minPrice);
   if (filters.maxPrice != null) query = query.lte("price_min", filters.maxPrice);
 

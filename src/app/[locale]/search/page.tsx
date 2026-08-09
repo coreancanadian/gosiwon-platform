@@ -10,7 +10,11 @@ import { SearchFilters } from "@/components/SearchFilters";
 import { SearchResults } from "@/components/SearchResults";
 import { PRICE_BANDS } from "@/lib/search-bands";
 import type { Locale } from "@/i18n/routing";
-import type { GenderPolicy, PropertyType } from "@/lib/types/database";
+import type {
+  GenderPolicy,
+  HousingCategory,
+  PropertyType,
+} from "@/lib/types/database";
 
 export default async function SearchPage({
   params,
@@ -40,6 +44,7 @@ export default async function SearchPage({
     q: one("q"),
     gender: one("gender") as GenderPolicy | undefined,
     propertyType: one("type") as PropertyType | undefined,
+    housingCategory: one("category") as HousingCategory | undefined,
     minPrice: band?.min,
     maxPrice: band?.max,
     sort: (one("sort") as Filters["sort"]) ?? "recommended",

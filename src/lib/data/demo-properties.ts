@@ -3,7 +3,11 @@
  * They exist so the UI is reviewable end-to-end before any real data lands.
  * The Excel importer writes real rows to Supabase and these stop being used.
  */
-import type { PropertyWithRelations, Room } from "@/lib/types/database";
+import {
+  housingCategoryOf,
+  type PropertyWithRelations,
+  type Room,
+} from "@/lib/types/database";
 import { SEED_REGIONS } from "./seed-reference";
 
 export interface DemoProperty extends PropertyWithRelations {
@@ -350,6 +354,12 @@ export const DEMO_PROPERTIES: DemoProperty[] = SPECS.map((spec, i) => {
     lat: spec.lat,
     lng: spec.lng,
     property_type: spec.property_type,
+    // Mirrors the Postgres generated column so demo mode filters identically.
+    housing_category: housingCategoryOf(spec.property_type),
+    building_type: null,
+    nearby_universities: [],
+    video_url: null,
+    external_id: null,
     gender: spec.gender,
     age_min: spec.age_min,
     age_max: spec.age_max,

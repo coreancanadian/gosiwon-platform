@@ -25,11 +25,15 @@ export async function ContactHostCard({
         </p>
       ) : null}
 
-      <p className="mt-1 text-sm text-ink-500">
-        {availableRooms > 0
-          ? t("roomsAvailable", { count: availableRooms })
-          : t("unavailable")}
-      </p>
+      {/* Imported listings carry a rent range but no per-room rows, so absence
+          of rooms means "not itemised yet", not "fully occupied". */}
+      {property.rooms.length > 0 ? (
+        <p className="mt-1 text-sm text-ink-500">
+          {availableRooms > 0
+            ? t("roomsAvailable", { count: availableRooms })
+            : t("unavailable")}
+        </p>
+      ) : null}
 
       <Link
         href={`/property/${property.slug}/inquire`}
