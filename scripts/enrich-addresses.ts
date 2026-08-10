@@ -9,7 +9,7 @@
  *   --limit <n>   Only process the first n listings
  *   --redo        Re-check listings already resolved (default: skip them)
  *
- * Needs KAKAO_REST_API_KEY. Searching "<business name> <district>" returns the
+ * Needs KAKAO_REST_API_KEY. Searching "<district> <business name>" returns the
  * road address, precise coordinates, the publicly listed phone number, and a
  * canonical Kakao place id.
  *
@@ -20,7 +20,12 @@
  */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { config as loadEnv } from "dotenv";
-import { looksLikeAddress, pickBest, type KakaoPlace } from "./place-match";
+import {
+  districtOf,
+  looksLikeAddress,
+  pickBest,
+  type KakaoPlace,
+} from "./place-match";
 
 loadEnv({ path: ".env.local" });
 loadEnv({ path: ".env" });
@@ -145,9 +150,16 @@ async function main() {
 
     // Including the district in the query is what keeps a common 고시원 name
     // from matching an identically-named place in another city.
+    // "<시·도 구> <업체명>" — e.g. "서울 서대문구 꼬모쉐 홍제역점".
+    //
+    // Scoped to the 구, not the 동: the source's 동 is often approximate, and a
+    // 동 that disagrees with Kakao's registered address would drop an otherwise
+    // good match to zero results. The 구 is reliable and still narrow enough to
+    // keep a common name like "행복고시원" from matching another city.
+    const district = districtOf(sourceAddress);
     let places = isAddressName
       ? await searchAddress(row.name_ko)
-      : await searchKeyword(`${row.name_ko} ${sourceAddress}`);
+      : await searchKeyword(`${district} ${row.name_ko}`.trim());
 
     // Fall back to the bare name; the district check still guards the result.
     if (places.length === 0 && !isAddressName) {
