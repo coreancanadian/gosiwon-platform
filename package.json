@@ -9,7 +9,8 @@
     "lint": "eslint",
     "import": "tsx scripts/import-excel.ts",
     "typecheck": "tsc --noEmit",
-    "enrich": "tsx scripts/enrich-addresses.ts"
+    "enrich": "tsx scripts/enrich-addresses.ts",
+    "enrich:preview": "tsx scripts/enrich-preview.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",
