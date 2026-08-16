@@ -53,22 +53,73 @@ interface Row {
   address_original: string | null;
 }
 
-async function kakao<T>(path: string, params: Record<string, string>): Promise<T | null> {
-  const qs = new URLSearchParams(params).toString();
-  const res = await fetch(`https://dapi.kakao.com${path}?${qs}`, {
-    headers: { Authorization: `KakaoAK ${KAKAO_KEY}` },
-  });
+/** A 401/403 is configuration, not a transient miss — stop rather than retry. */
+function abortOnAuthError(status: number, body: string): void {
+  if (status !== 401 && status !== 403) return;
 
-  if (res.status === 429) {
-    console.warn("  ⚠︎ rate limited, backing off 2s");
-    await new Promise((r) => setTimeout(r, 2000));
-    return null;
+  console.error(`\n✗ Kakao rejected the request (HTTP ${status})`);
+  console.error(`  ${body}\n`);
+  if (body.includes("OPEN_MAP_AND_LOCAL")) {
+    console.error(`  내 애플리케이션 → (app) → 제품 설정 → 카카오맵 → 활성화 설정 → ON`);
+  } else {
+    console.error(`  Check KAKAO_REST_API_KEY is the REST API key.`);
   }
-  if (!res.ok) {
-    console.warn(`  ⚠︎ ${res.status} ${res.statusText}`);
-    return null;
+  process.exit(1);
+}
+
+/**
+ * Kakao closes long-lived HTTP/2 sessions periodically (GOAWAY), which surfaces
+ * as `fetch failed` on whatever request was in flight. Over a few thousand
+ * lookups that is a certainty, not an edge case — so network errors, 429s, and
+ * 5xx all retry with backoff instead of aborting the run.
+ *
+ * Auth errors are deliberately NOT retried: those are configuration problems
+ * and retrying just burns quota.
+ */
+async function kakao<T>(
+  path: string,
+  params: Record<string, string>,
+): Promise<T | null> {
+  const qs = new URLSearchParams(params).toString();
+  const url = `https://dapi.kakao.com${path}?${qs}`;
+  const MAX_ATTEMPTS = 4;
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      const res = await fetch(url, {
+        headers: { Authorization: `KakaoAK ${KAKAO_KEY}` },
+      });
+
+      if (res.status === 401 || res.status === 403) {
+        abortOnAuthError(res.status, await res.text());
+        return null;
+      }
+
+      if (res.status === 429 || res.status >= 500) {
+        const wait = 500 * 2 ** (attempt - 1);
+        console.warn(`  ⚠︎ HTTP ${res.status}, retrying in ${wait}ms`);
+        await new Promise((r) => setTimeout(r, wait));
+        continue;
+      }
+
+      if (!res.ok) {
+        console.warn(`  ⚠︎ ${res.status} ${res.statusText}`);
+        return null;
+      }
+
+      return (await res.json()) as T;
+    } catch (err) {
+      // Connection reset / GOAWAY / DNS blip.
+      if (attempt === MAX_ATTEMPTS) {
+        console.warn(`  ⚠︎ network error after ${MAX_ATTEMPTS} attempts: ${String(err)}`);
+        return null;
+      }
+      const wait = 500 * 2 ** (attempt - 1);
+      await new Promise((r) => setTimeout(r, wait));
+    }
   }
-  return (await res.json()) as T;
+
+  return null;
 }
 
 async function searchKeyword(query: string): Promise<KakaoPlace[]> {
