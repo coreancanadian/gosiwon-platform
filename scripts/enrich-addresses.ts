@@ -122,20 +122,30 @@ async function main() {
     auth: { persistSession: false },
   });
 
-  let query = supabase
-    .from("properties")
-    .select("id, name_ko, address_ko, address_original")
-    .order("created_at");
+  // PostgREST caps a single response at 1,000 rows, so page through rather
+  // than silently enriching only the first thousand.
+  const all: Row[] = [];
+  const PAGE = 1000;
+  for (let from = 0; from < LIMIT; from += PAGE) {
+    let query = supabase
+      .from("properties")
+      .select("id, name_ko, address_ko, address_original")
+      .order("created_at")
+      .range(from, Math.min(from + PAGE, LIMIT) - 1);
 
-  if (!REDO) query = query.eq("address_source", "import");
+    if (!REDO) query = query.eq("address_source", "import");
 
-  const { data, error } = await query;
-  if (error) {
-    console.error(`✗ ${error.message}`);
-    process.exit(1);
+    const { data, error } = await query;
+    if (error) {
+      console.error(`✗ ${error.message}`);
+      process.exit(1);
+    }
+    if (!data || data.length === 0) break;
+    all.push(...(data as Row[]));
+    if (data.length < PAGE) break;
   }
 
-  const rows = (data as Row[]).slice(0, LIMIT);
+  const rows = all;
   console.log(`Resolving ${rows.length} listing(s) via Kakao Local\n`);
 
   let resolved = 0;
