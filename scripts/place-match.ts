@@ -20,35 +20,47 @@ export interface KakaoPlace {
   place_url: string;
 }
 
-/** 서울특별시 -> 서울, 경기도 -> 경기, 충청남도 -> 충남 … */
-const PROVINCE_SHORT: Record<string, string> = {
-  서울특별시: "서울",
-  부산광역시: "부산",
-  대구광역시: "대구",
-  인천광역시: "인천",
-  광주광역시: "광주",
-  대전광역시: "대전",
-  울산광역시: "울산",
-  세종특별자치시: "세종",
-  경기도: "경기",
-  강원도: "강원",
-  강원특별자치도: "강원",
-  충청북도: "충북",
-  충청남도: "충남",
-  전라북도: "전북",
-  전북특별자치도: "전북",
-  전라남도: "전남",
-  경상북도: "경북",
-  경상남도: "경남",
-  제주특별자치도: "제주",
+/**
+ * Canonical 시·도 token, mapping every spelling to one value.
+ *
+ * Both the long and short form of each province are listed, because the source
+ * spreadsheets use short forms ("서울 관악구") while Kakao returns a mix —
+ * short for most, but the full legal name for the special self-governing
+ * provinces (강원특별자치도, 전북특별자치도, 제주특별자치도, 세종특별자치시).
+ *
+ * 광주 and 전남 are the awkward case: Kakao returns 전남광주통합특별시 for BOTH,
+ * so both source provinces normalise to one token. That's safe because the
+ * second token disambiguates — the old 광주 districts are all 구
+ * (동/서/남/북/광산구) and the old 전남 ones are all 시/군, so they never collide.
+ */
+const PROVINCE_CANON: Record<string, string> = {
+  서울특별시: "서울", 서울: "서울",
+  부산광역시: "부산", 부산: "부산",
+  대구광역시: "대구", 대구: "대구",
+  인천광역시: "인천", 인천: "인천",
+  대전광역시: "대전", 대전: "대전",
+  울산광역시: "울산", 울산: "울산",
+  세종특별자치시: "세종", 세종: "세종",
+  경기도: "경기", 경기: "경기",
+  강원특별자치도: "강원", 강원도: "강원", 강원: "강원",
+  충청북도: "충북", 충북: "충북",
+  충청남도: "충남", 충남: "충남",
+  전북특별자치도: "전북", 전라북도: "전북", 전북: "전북",
+  경상북도: "경북", 경북: "경북",
+  경상남도: "경남", 경남: "경남",
+  제주특별자치도: "제주", 제주도: "제주", 제주: "제주",
+
+  전남광주통합특별시: "전남광주",
+  광주광역시: "전남광주", 광주: "전남광주",
+  전라남도: "전남광주", 전남: "전남광주",
 };
 
-/** The "시·도 + 시·군·구" prefix of an address, in short form. */
+/** The "시·도 + 시·군·구" prefix of an address, in canonical form. */
 export function districtOf(address: string | null | undefined): string {
   if (!address) return "";
   const parts = address.trim().split(/\s+/);
   if (parts.length === 0) return "";
-  const province = PROVINCE_SHORT[parts[0]] ?? parts[0];
+  const province = PROVINCE_CANON[parts[0]] ?? parts[0];
   return parts.length > 1 ? `${province} ${parts[1]}` : province;
 }
 

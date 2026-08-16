@@ -365,47 +365,83 @@ async function write(
   const amenityIdBySlug = new Map((amenities ?? []).map((a) => [a.slug, a.id]));
   const stationIdByName = new Map((stations ?? []).map((s) => [s.name_ko, s.id]));
 
+  // Idempotency without ON CONFLICT: the unique index on external_id is
+  // partial (WHERE external_id IS NOT NULL), and Postgres can't infer a
+  // partial index from a plain conflict target. Reading the existing ids up
+  // front is also cheaper than per-row conflict handling.
+  const existingIdByExternal = new Map<string, string>();
+  {
+    const PAGE = 1000;
+    for (let from = 0; ; from += PAGE) {
+      const { data: page } = await supabase
+        .from("properties")
+        .select("id, external_id")
+        .not("external_id", "is", null)
+        .range(from, from + PAGE - 1);
+      if (!page || page.length === 0) break;
+      page.forEach((p) => {
+        if (p.external_id) existingIdByExternal.set(p.external_id, p.id);
+      });
+      if (page.length < PAGE) break;
+    }
+  }
+  if (existingIdByExternal.size > 0) {
+    console.log(`  ${existingIdByExternal.size} already imported — updating in place\n`);
+  }
+
   let created = 0;
   let failed = 0;
   let amenityLinks = 0;
   let stationLinks = 0;
 
   for (const listing of listings) {
-    const { data: row, error } = await supabase
-      .from("properties")
-      .upsert(
-        {
-          owner_id: ownerId,
-          external_id: listing.external_id,
-          slug: slugify(listing),
-          name_ko: listing.name_ko,
-          name_en: listing.name_en,
-          address_ko: listing.address_ko,
-          region_id: listing.regionSlug
-            ? (regionIdBySlug.get(listing.regionSlug) ?? null)
-            : null,
-          lat: listing.lat ?? null,
-          lng: listing.lng ?? null,
-          property_type: listing.property_type,
-          gender: listing.gender,
-          floors_total: listing.floors_total,
-          floors_used: listing.floors_used,
-          building_type: listing.building_type,
-          nearby_universities: listing.nearby_universities,
-          video_url: listing.video_url,
-          description_ko: listing.description_ko,
-          price_min: listing.price_min,
-          price_max: listing.price_max,
-          is_published: PUBLISH,
-          // The real operator has not registered yet. The public page invites
-          // them to claim it, and approval transfers owner_id to them.
-          claim_status: "unclaimed",
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "external_id" },
-      )
-      .select("id")
-      .single();
+    const existingId = listing.external_id
+      ? existingIdByExternal.get(listing.external_id)
+      : undefined;
+
+    const fields = {
+      owner_id: ownerId,
+      external_id: listing.external_id,
+      name_ko: listing.name_ko,
+      name_en: listing.name_en,
+      address_ko: listing.address_ko,
+      address_original: listing.address_ko,
+      region_id: listing.regionSlug
+        ? (regionIdBySlug.get(listing.regionSlug) ?? null)
+        : null,
+      lat: listing.lat ?? null,
+      lng: listing.lng ?? null,
+      property_type: listing.property_type,
+      gender: listing.gender,
+      floors_total: listing.floors_total,
+      floors_used: listing.floors_used,
+      building_type: listing.building_type,
+      nearby_universities: listing.nearby_universities,
+      video_url: listing.video_url,
+      description_ko: listing.description_ko,
+      price_min: listing.price_min,
+      price_max: listing.price_max,
+      is_published: PUBLISH,
+      // The real operator has not registered yet. The public page invites
+      // them to claim it, and approval transfers owner_id to them.
+      claim_status: "unclaimed",
+      updated_at: new Date().toISOString(),
+    };
+
+    // Re-import updates in place; the slug is only assigned on first insert so
+    // that published URLs stay stable.
+    const { data: row, error } = existingId
+      ? await supabase
+          .from("properties")
+          .update(fields)
+          .eq("id", existingId)
+          .select("id")
+          .single()
+      : await supabase
+          .from("properties")
+          .insert({ ...fields, slug: slugify(listing) })
+          .select("id")
+          .single();
 
     if (error || !row) {
       console.error(`  ✗ ${listing.name_ko}: ${error?.message}`);
