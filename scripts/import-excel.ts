@@ -66,6 +66,24 @@ const LIMIT = flag("limit") ? parseInt(flag("limit")!, 10) : Infinity;
 // two files add 번호 and "English 업체명", which is why we match by header text
 // rather than by position.
 // ---------------------------------------------------------------------------
+/**
+ * Source files that are deliberately not imported.
+ *
+ * 원투룸.xlsx has an address in its 업체명 column and no contact details at all,
+ * so a visitor has no way to reach anyone about those rooms. A listing nobody
+ * can act on is worse than no listing.
+ */
+const SKIP_FILES = ["원투룸.xlsx"];
+
+/**
+ * macOS returns directory entries NFD-decomposed ("원" as ㅇ+ㅜ+ㄴ), while a
+ * Korean string literal in source is NFC-composed. They look identical and
+ * compare unequal, so every filename comparison must normalise both sides —
+ * otherwise a skip list silently does nothing.
+ */
+const sameFile = (a: string, b: string) => a.normalize("NFC") === b.normalize("NFC");
+const isSkipped = (f: string) => SKIP_FILES.some((s) => sameFile(s, f));
+
 const COLUMNS = {
   external_id: "아이디",
   name_ko: "업체명",
@@ -495,9 +513,16 @@ async function write(
 // Main
 // ---------------------------------------------------------------------------
 async function main() {
-  const files = (await readdir(DIR))
+  const allFiles = (await readdir(DIR))
     .filter((f) => [".xlsx", ".xls", ".csv"].includes(extname(f).toLowerCase()))
-    .filter((f) => !f.startsWith("~$"))
+    .filter((f) => !f.startsWith("~$"));
+
+  allFiles
+    .filter((f) => isSkipped(f))
+    .forEach((f) => console.log(`▸ ${f.padEnd(26)} skipped (no business name or contact)`));
+
+  const files = allFiles
+    .filter((f) => !isSkipped(f))
     .map((f) => join(DIR, f));
 
   if (files.length === 0) {
