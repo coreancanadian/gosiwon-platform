@@ -132,11 +132,21 @@ async function sweep(
     const [minLng, minLat, maxLng, maxLat] = box;
     const midLng = (minLng + maxLng) / 2;
     const midLat = (minLat + maxLat) / 2;
+
+    // Children OVERLAP by a margin. Kakao's rect search drops points sitting
+    // within a few tens of metres of a boundary: splitting 대구 cleanly lost
+    // 반월당역, which is 37m from one split line and appeared in the parent but
+    // in none of the four children. Straight quadrants therefore leak stations
+    // at every subdivision edge. Overlapping costs nothing — results are
+    // deduplicated by station name anyway.
+    const mLng = Math.max((maxLng - minLng) * 0.02, 0.0015);
+    const mLat = Math.max((maxLat - minLat) * 0.02, 0.0015);
+
     for (const quad of [
-      [minLng, minLat, midLng, midLat],
-      [midLng, minLat, maxLng, midLat],
-      [minLng, midLat, midLng, maxLat],
-      [midLng, midLat, maxLng, maxLat],
+      [minLng, minLat, midLng + mLng, midLat + mLat],
+      [midLng - mLng, minLat, maxLng, midLat + mLat],
+      [minLng, midLat - mLat, midLng + mLng, maxLat],
+      [midLng - mLng, midLat - mLat, maxLng, maxLat],
     ] as Array<[number, number, number, number]>) {
       await sweep(quad, found, depth + 1);
     }
