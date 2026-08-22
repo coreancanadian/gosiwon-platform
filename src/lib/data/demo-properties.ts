@@ -365,6 +365,16 @@ export const DEMO_PROPERTIES: DemoProperty[] = SPECS.map((spec, i) => {
     video_url: null,
     external_id: null,
     claim_status: spec.unclaimed ? "unclaimed" : "claimed",
+    // Demo fixtures are written with street addresses already, so they stand in
+    // for listings that have been through enrichment.
+    address_original: spec.address_ko,
+    road_address: spec.address_ko,
+    jibun_address: null,
+    address_source: "kakao_place",
+    address_verified_at: null,
+    kakao_place_id: null,
+    kakao_place_url: null,
+    listing_phone: null,
     gender: spec.gender,
     age_min: spec.age_min,
     age_max: spec.age_max,

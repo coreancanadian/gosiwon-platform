@@ -221,6 +221,16 @@ export type Property = {
   video_url: string | null;
   external_id: string | null;
   claim_status: ClaimStatus;
+  /** District-level address as imported, kept so enrichment is reversible. */
+  address_original: string | null;
+  road_address: string | null;
+  jibun_address: string | null;
+  address_source: "import" | "kakao_place" | "manual";
+  address_verified_at: string | null;
+  kakao_place_id: string | null;
+  kakao_place_url: string | null;
+  /** Publicly listed business phone, distinct from a user's own phone. */
+  listing_phone: string | null;
   languages: string[];
   description_ko: string | null;
   description_en: string | null;

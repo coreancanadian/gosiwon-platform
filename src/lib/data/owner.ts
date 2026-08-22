@@ -11,24 +11,60 @@ export interface OwnerStats {
   pendingInquiries: number;
 }
 
-/** Listings belonging to the signed-in host, drafts included. */
-export async function getOwnerProperties(): Promise<PropertyWithRelations[]> {
-  if (!isSupabaseConfigured()) return [];
+export interface OwnerPropertyPage {
+  properties: PropertyWithRelations[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+}
+
+/**
+ * Listings belonging to the signed-in host, drafts included.
+ *
+ * Paginated: an aggregator account owns thousands of imported listings until
+ * their operators claim them, and PostgREST would cap the response at 1,000
+ * rows anyway — silently, which would look like data loss.
+ */
+export async function getOwnerProperties(
+  page = 1,
+  pageSize = 25,
+): Promise<OwnerPropertyPage> {
+  const empty: OwnerPropertyPage = {
+    properties: [],
+    total: 0,
+    page: 1,
+    pageSize,
+    pageCount: 0,
+  };
+  if (!isSupabaseConfigured()) return empty;
 
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return [];
+  if (!user) return empty;
 
-  const { data, error } = await supabase
+  const safePage = Math.max(1, page);
+  const from = (safePage - 1) * pageSize;
+
+  const { data, error, count } = await supabase
     .from("properties")
-    .select("*, rooms (*), property_images (*), regions (*)")
+    .select("*, rooms (*), property_images (*), regions (*)", { count: "exact" })
     .eq("owner_id", user.id)
-    .order("updated_at", { ascending: false });
+    .order("updated_at", { ascending: false })
+    .range(from, from + pageSize - 1);
 
   if (error) throw new Error(`Failed to load your listings: ${error.message}`);
-  return (data ?? []) as unknown as PropertyWithRelations[];
+
+  const total = count ?? 0;
+  return {
+    properties: (data ?? []) as unknown as PropertyWithRelations[],
+    total,
+    page: safePage,
+    pageSize,
+    pageCount: Math.max(1, Math.ceil(total / pageSize)),
+  };
 }
 
 export async function getOwnerProperty(

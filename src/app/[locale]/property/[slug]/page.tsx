@@ -75,9 +75,10 @@ export default async function PropertyPage({ params }: Props) {
   const property = (await getPropertyBySlug(slug)) as PropertyWithRelations | null;
   if (!property) notFound();
 
-  const [t, tEnum, amenities, amenitySlugs, stations] = await Promise.all([
+  const [t, tEnum, tSearch, amenities, amenitySlugs, stations] = await Promise.all([
     getTranslations("Property"),
     getTranslations("Enums"),
+    getTranslations("Search"),
     getAmenities(),
     getPropertyAmenitySlugs(property.id),
     getPropertyStations(property.id),
@@ -185,10 +186,10 @@ export default async function PropertyPage({ params }: Props) {
                   .map(({ station, walkMinutes }) => {
                     const sName = isKo ? station.name_ko : station.name_en;
                     return walkMinutes != null
-                      ? `${sName} ${walkMinutes}min`
+                      ? `${sName} · ${tSearch("walkMinutes", { minutes: walkMinutes })}`
                       : sName;
                   })
-                  .join(" · ")}
+                  .join("   ")}
               />
             ) : null}
             {property.nearby_universities.length > 0 ? (
