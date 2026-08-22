@@ -104,9 +104,20 @@ export interface MatchVerdict {
   reason: string;
 }
 
-/** Names in one source file are addresses, not business names. */
+const PROVINCE_PREFIX =
+  /^(서울|경기|부산|인천|대구|대전|광주|울산|충남|충북|전남|전북|경남|경북|강원|제주|세종)\s/;
+
+/**
+ * Names in one source file are addresses, not business names —
+ * "서울 관악구 신림동 251-349".
+ *
+ * Requires BOTH a province prefix and a trailing lot number. An earlier version
+ * only looked for "시|군|구 " plus any digit, which misread real business names
+ * like "나의도시 건대 1호점" (도시 contains 시) as addresses.
+ */
 export function looksLikeAddress(name: string): boolean {
-  return /(시|군|구)\s/.test(name) && /\d/.test(name);
+  const trimmed = name.trim();
+  return PROVINCE_PREFIX.test(trimmed) && /\d+(-\d+)?$/.test(trimmed);
 }
 
 const NAME_THRESHOLD = 0.6;
