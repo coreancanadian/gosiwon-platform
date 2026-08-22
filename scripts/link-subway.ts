@@ -141,6 +141,20 @@ async function main() {
     auth: { persistSession: false },
   });
 
+  // distance_m / distance_source arrive in migration 0008. Without them the
+  // link still records walk_minutes; the raw metres just aren't auditable.
+  const { error: probe } = await supabase
+    .from("property_subway")
+    .select("distance_m")
+    .limit(1);
+  const hasDistanceColumns = !probe;
+  if (!hasDistanceColumns) {
+    console.log(
+      `  note: property_subway.distance_m missing (migration 0008 not applied)\n` +
+        `        walk_minutes will be stored, raw distance will not\n`,
+    );
+  }
+
   // Existing stations, keyed by Korean name so seeded rows are reused.
   const stationIdByName = new Map<string, string>();
   const takenSlugs = new Set<string>();
@@ -206,8 +220,8 @@ async function main() {
         property_id: string;
         station_id: string;
         walk_minutes: number;
-        distance_m: number;
-        distance_source: string;
+        distance_m?: number;
+        distance_source?: string;
       }> = [];
 
       for (const station of nearby) {
@@ -252,8 +266,9 @@ async function main() {
           property_id: row.id,
           station_id: stationId,
           walk_minutes: walkMinutesFrom(station.distanceM),
-          distance_m: station.distanceM,
-          distance_source: "kakao_sw8",
+          ...(hasDistanceColumns
+            ? { distance_m: station.distanceM, distance_source: "kakao_sw8" }
+            : {}),
         });
       }
 

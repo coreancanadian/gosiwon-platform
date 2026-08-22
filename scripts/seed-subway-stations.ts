@@ -40,10 +40,17 @@ const KAKAO_KEY = process.env.KAKAO_REST_API_KEY;
 const REGIONS: Array<{ name: string; box: [number, number, number, number] }> = [
   // [minLng, minLat, maxLng, maxLat]
   { name: "수도권·강원 서부", box: [126.2, 36.6, 127.9, 38.35] },
-  { name: "부산·울산·경남", box: [128.5, 34.85, 129.6, 35.75] },
-  { name: "대구·경북", box: [128.3, 35.6, 129.0, 36.35] },
-  { name: "광주·전남", box: [126.5, 34.9, 127.2, 35.35] },
-  { name: "대전·충청", box: [126.9, 36.1, 127.7, 36.9] },
+  { name: "부산·울산·경남", box: [128.4, 34.8, 129.7, 35.85] },
+  { name: "대구·경북", box: [128.2, 35.55, 129.1, 36.45] },
+  { name: "광주·전남", box: [126.4, 34.7, 127.4, 35.45] },
+  { name: "대전·충청", box: [126.8, 36.0, 127.8, 36.95] },
+];
+
+/** Spot-check that well-known stations across every system were found. */
+const MUST_EXIST = [
+  "강남역", "홍대입구역", "잠실역", "수원역", "부평역",
+  "서면역", "해운대역", "반월당역", "동대구역",
+  "상무역", "유성온천역", "정부청사역", "야탑역",
 ];
 
 interface Sw8Doc {
@@ -138,6 +145,10 @@ async function sweep(
 
   const collect = (docs: Sw8Doc[]) => {
     for (const doc of docs) {
+      // Kakao lists stations that haven't opened yet — "내포역 (2027년예정)".
+      // Matching a listing to a station that doesn't exist would be a lie.
+      if (/예정|미개통/.test(doc.place_name)) continue;
+
       const { name, line } = splitStationName(doc.place_name);
       if (!name) continue;
       const existing = found.get(name);
@@ -183,6 +194,14 @@ async function main() {
 
   console.log(`\n${found.size} distinct stations found in ${apiCalls} API calls`);
 
+  const missing = MUST_EXIST.filter((n) => !found.has(n));
+  if (missing.length > 0) {
+    console.warn(`\n⚠︎ expected stations NOT found — a region box may be clipping:`);
+    missing.forEach((n) => console.warn(`    ${n}`));
+  } else {
+    console.log(`  spot-check: all ${MUST_EXIST.length} reference stations present`);
+  }
+
   if (DRY_RUN) {
     const sample = [...found.values()].slice(0, 15);
     console.log(`\nsample:`);
@@ -198,6 +217,16 @@ async function main() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { persistSession: false } },
   );
+
+  // `source` arrives in migration 0008; work without it if that hasn't run yet.
+  const { error: probe } = await sb
+    .from("subway_stations")
+    .select("source")
+    .limit(1);
+  const hasSourceColumn = !probe;
+  if (!hasSourceColumn) {
+    console.log(`  note: subway_stations.source missing (migration 0008 not applied) — inserting without it`);
+  }
 
   const { data: existing } = await sb
     .from("subway_stations")
@@ -241,8 +270,8 @@ async function main() {
       lat: station.lat,
       lng: station.lng,
       is_featured: false,
-      source: "kakao_sw8",
       sort_order: 0,
+      ...(hasSourceColumn ? { source: "kakao_sw8" } : {}),
     });
   }
 
