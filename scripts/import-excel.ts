@@ -40,6 +40,7 @@ import {
   parseUniversities,
   type PropertyType,
 } from "./source-map";
+import { slugifyKorean } from "./romanize";
 
 loadEnv({ path: ".env.local" });
 loadEnv({ path: ".env" });
@@ -287,10 +288,9 @@ async function geocode(address: string): Promise<{ lat: number; lng: number } | 
 }
 
 function slugify(listing: ParsedListing): string {
-  const base = (listing.name_en || listing.name_ko)
-    .trim()
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, "-")
+  // Romanise rather than keeping Hangul: a Korean slug percent-encodes into an
+  // unshareable URL. slugifyKorean passes Latin characters through unchanged.
+  const base = slugifyKorean(listing.name_en || listing.name_ko)
     .replace(/^-+|-+$/g, "");
   // external_id keeps the slug stable across re-imports.
   const suffix = listing.external_id ?? Math.random().toString(36).slice(2, 8);
