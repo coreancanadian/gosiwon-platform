@@ -29,16 +29,15 @@ export const PRICE_BANDS: PriceBand[] = [
 
 export const GENDERS: GenderPolicy[] = ["any", "male", "female"];
 
-/** Ordered by how common each type is in the catalogue. */
-export const PROPERTY_TYPES: PropertyType[] = [
-  "gosiwon",
-  "oneroomtel",
-  "share_house",
-  "one_room",
-  "coliving",
-  "officetel",
-  "dormitory",
-];
+/**
+ * The types offered in the filter.
+ *
+ * The schema still records 원룸텔, 코리빙하우스 and the rest — the source data
+ * distinguishes them and throwing that away would be lossy — but the filter
+ * only offers the two the site is actually about. Add a type back here and it
+ * becomes filterable again with no other change.
+ */
+export const PROPERTY_TYPES: PropertyType[] = ["gosiwon", "share_house"];
 
 export const HOUSING_CATEGORIES: HousingCategory[] = ["private", "shared"];
 
@@ -48,4 +47,9 @@ export const TYPES_BY_CATEGORY: Record<HousingCategory, PropertyType[]> = {
   shared: ["share_house", "coliving", "dormitory"],
 };
 
-export const SORTS = ["recommended", "price_asc", "price_desc", "newest"] as const;
+export const SORTS = [
+  "recommended",
+  "price_asc",
+  "price_desc",
+  "newest",
+] as const;

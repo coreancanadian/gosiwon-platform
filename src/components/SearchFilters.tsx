@@ -7,7 +7,6 @@ import { SlidersHorizontal, X } from "lucide-react";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import {
   GENDERS,
-  HOUSING_CATEGORIES,
   PRICE_BANDS,
   PROPERTY_TYPES as TYPES,
   SORTS,
@@ -37,58 +36,29 @@ export function SearchFilters() {
 
   const gender = searchParams.get("gender") ?? "any";
   const type = searchParams.get("type") ?? "";
-  const category = searchParams.get("category") ?? "";
   const band = searchParams.get("price") ?? "any";
   const sort = searchParams.get("sort") ?? "recommended";
 
   const hasFilters =
-    gender !== "any" ||
-    type !== "" ||
-    category !== "" ||
-    band !== "any" ||
-    sort !== "recommended";
+    gender !== "any" || type !== "" || band !== "any" || sort !== "recommended";
 
   const selectClass =
     "rounded-full border border-ink-200 bg-white px-3 py-1.5 text-sm text-ink-700 transition hover:border-ink-300 focus:ring-2 focus:ring-brand-500 focus:outline-none";
 
   return (
-    <div className={isPending ? "opacity-70" : ""}>
-      {/* Private room vs shared living — the primary decision, so it gets
-          segmented buttons rather than being buried in a dropdown. */}
-      <div className="mb-3 inline-flex rounded-full border border-ink-200 bg-white p-1">
-        <button
-          type="button"
-          onClick={() => setParam({ category: null, type: null })}
-          className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
-            category === "" ? "bg-ink-900 text-white" : "text-ink-600 hover:bg-ink-100"
-          }`}
-        >
-          {t("anyType")}
-        </button>
-        {HOUSING_CATEGORIES.map((c) => (
-          <button
-            key={c}
-            type="button"
-            onClick={() => setParam({ category: c, type: null })}
-            title={tEnum(`housingCategoryHint.${c}`)}
-            className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
-              category === c ? "bg-ink-900 text-white" : "text-ink-600 hover:bg-ink-100"
-            }`}
-          >
-            {tEnum(`housingCategory.${c}`)}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="flex items-center gap-1.5 text-sm font-medium text-ink-600">
-          <SlidersHorizontal className="h-4 w-4" aria-hidden />
-          {t("filters")}
-        </span>
+    <div
+      className={`flex flex-wrap items-center gap-2 ${isPending ? "opacity-70" : ""}`}
+    >
+      <span className="flex items-center gap-1.5 text-sm font-medium text-ink-600">
+        <SlidersHorizontal className="h-4 w-4" aria-hidden />
+        {t("filters")}
+      </span>
 
       <select
         value={gender}
-        onChange={(e) => setParam({ gender: e.target.value === "any" ? null : e.target.value })}
+        onChange={(e) =>
+          setParam({ gender: e.target.value === "any" ? null : e.target.value })
+        }
         aria-label={t("gender")}
         className={selectClass}
       >
@@ -115,7 +85,9 @@ export function SearchFilters() {
 
       <select
         value={band}
-        onChange={(e) => setParam({ price: e.target.value === "any" ? null : e.target.value })}
+        onChange={(e) =>
+          setParam({ price: e.target.value === "any" ? null : e.target.value })
+        }
         aria-label={t("priceRange")}
         className={selectClass}
       >
@@ -128,7 +100,11 @@ export function SearchFilters() {
 
       <select
         value={sort}
-        onChange={(e) => setParam({ sort: e.target.value === "recommended" ? null : e.target.value })}
+        onChange={(e) =>
+          setParam({
+            sort: e.target.value === "recommended" ? null : e.target.value,
+          })
+        }
         aria-label={t("sortBy")}
         className={`${selectClass} ml-auto`}
       >
@@ -147,25 +123,18 @@ export function SearchFilters() {
         ))}
       </select>
 
-        {hasFilters ? (
-          <button
-            type="button"
-            onClick={() =>
-              setParam({
-                gender: null,
-                type: null,
-                category: null,
-                price: null,
-                sort: null,
-              })
-            }
-            className="flex items-center gap-1 rounded-full px-2.5 py-1.5 text-sm text-ink-500 transition hover:bg-ink-100"
-          >
-            <X className="h-3.5 w-3.5" aria-hidden />
-            {t("clearFilters")}
-          </button>
-        ) : null}
-      </div>
+      {hasFilters ? (
+        <button
+          type="button"
+          onClick={() =>
+            setParam({ gender: null, type: null, price: null, sort: null })
+          }
+          className="flex items-center gap-1 rounded-full px-2.5 py-1.5 text-sm text-ink-500 transition hover:bg-ink-100"
+        >
+          <X className="h-3.5 w-3.5" aria-hidden />
+          {t("clearFilters")}
+        </button>
+      ) : null}
     </div>
   );
 }
