@@ -1,9 +1,13 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { getRegionsByTier, getFeaturedStations } from "@/lib/data/queries";
+import {
+  getRegionsByTier,
+  getFeaturedStations,
+  getUniversities,
+} from "@/lib/data/queries";
 import { SearchBox, type SearchOption } from "@/components/SearchBox";
 import { PlaceTile } from "@/components/PlaceTile";
 import type { Locale } from "@/i18n/routing";
-import type { Region, SubwayStation } from "@/lib/types/database";
+import type { Region, SubwayStation, University } from "@/lib/types/database";
 
 function TileGrid({
   heading,
@@ -33,10 +37,14 @@ export default async function HomePage({
   setRequestLocale(locale);
 
   const t = await getTranslations("Home");
-  const [{ seoul, incheon, majorCity }, stations] = await Promise.all([
-    getRegionsByTier(),
-    getFeaturedStations(),
-  ]);
+  // Featured tiles for the three groups; the full university list feeds search.
+  const [{ seoul }, stations, featuredUniversities, allUniversities] =
+    await Promise.all([
+      getRegionsByTier(),
+      getFeaturedStations(),
+      getUniversities(true),
+      getUniversities(),
+    ]);
 
   const isKo = (locale as Locale) === "ko";
   const regionName = (r: Region) => (isKo ? r.name_ko : r.name_en);
@@ -44,11 +52,16 @@ export default async function HomePage({
   const stationName = (s: SubwayStation) => (isKo ? s.name_ko : s.name_en);
   const stationLines = (s: SubwayStation) =>
     (isKo ? s.lines_ko : s.lines_en).join(" · ");
+  const universityName = (u: University) =>
+    isKo ? (u.short_name_ko ?? u.name_ko) : u.name_en;
 
-  // One flat list feeds the autocomplete — regions and stations together, so a
-  // visitor can type either without picking a mode first.
+  /**
+   * One flat autocomplete list across all three groups, so a visitor can type a
+   * district, a station, or a school without choosing a mode first. Every
+   * university is searchable even though only eight get a tile.
+   */
   const searchOptions: SearchOption[] = [
-    ...[...seoul, ...incheon, ...majorCity].map((r) => ({
+    ...seoul.map((r) => ({
       kind: "region" as const,
       slug: r.slug,
       name_ko: r.name_ko,
@@ -64,11 +77,18 @@ export default async function HomePage({
       hint_ko: s.lines_ko.join(" · "),
       hint_en: s.lines_en.join(" · "),
     })),
+    ...allUniversities.map((u) => ({
+      kind: "university" as const,
+      slug: u.slug,
+      name_ko: u.name_ko,
+      name_en: u.name_en,
+      hint_ko: u.city_ko,
+      hint_en: u.city_ko,
+    })),
   ];
 
   return (
     <div className="mx-auto max-w-7xl px-4 pb-8 sm:px-6">
-      {/* Hero + search */}
       <section className="pt-12 pb-2 text-center sm:pt-20">
         <h1 className="mx-auto max-w-3xl text-3xl font-bold tracking-tight text-balance text-ink-900 sm:text-5xl">
           {t("title")}
@@ -107,31 +127,22 @@ export default async function HomePage({
         ))}
       </TileGrid>
 
-      <TileGrid heading={t("incheonHeading")}>
-        {incheon.map((r) => (
-          <PlaceTile
-            key={r.slug}
-            href={`/search?region=${r.slug}`}
-            slug={r.slug}
-            title={regionName(r)}
-            subtitle={regionParent(r)}
-            imageUrl={r.image_url}
-          />
-        ))}
-      </TileGrid>
-
-      <TileGrid heading={t("majorCityHeading")}>
-        {majorCity.map((r) => (
-          <PlaceTile
-            key={r.slug}
-            href={`/search?region=${r.slug}`}
-            slug={r.slug}
-            title={regionName(r)}
-            subtitle={regionParent(r)}
-            imageUrl={r.image_url}
-          />
-        ))}
-      </TileGrid>
+      {featuredUniversities.length > 0 ? (
+        <TileGrid heading={t("universityHeading")}>
+          {featuredUniversities.map((u) => (
+            <PlaceTile
+              key={u.slug}
+              href={`/search?university=${u.slug}`}
+              slug={u.slug}
+              title={universityName(u)}
+              subtitle={
+                u.listing_count > 0 ? t("listingCount", { count: u.listing_count }) : u.city_ko
+              }
+              imageUrl={u.image_url}
+            />
+          ))}
+        </TileGrid>
+      ) : null}
     </div>
   );
 }

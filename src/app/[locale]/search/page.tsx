@@ -2,6 +2,8 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import {
   getRegions,
   getFeaturedStations,
+  getUniversities,
+  getUniversityBySlug,
   searchProperties,
   type SearchFilters as Filters,
 } from "@/lib/data/queries";
@@ -36,6 +38,7 @@ export default async function SearchPage({
 
   const regionSlug = one("region");
   const stationSlug = one("station");
+  const universitySlug = one("university");
   const band = PRICE_BANDS.find((b) => b.key === one("price"));
 
   const filters: Filters = {
@@ -50,10 +53,18 @@ export default async function SearchPage({
     sort: (one("sort") as Filters["sort"]) ?? "recommended",
   };
 
-  const [properties, regions, stations] = await Promise.all([
+  // A university is addressed by slug in the URL but matched by its exact
+  // Korean name inside properties.nearby_universities.
+  const university = universitySlug
+    ? await getUniversityBySlug(universitySlug)
+    : null;
+  if (university) filters.university = university.name_ko;
+
+  const [properties, regions, stations, universities] = await Promise.all([
     searchProperties(filters),
     getRegions(),
     getFeaturedStations(),
+    getUniversities(),
   ]);
 
   // Heading + initial map centre come from whichever place was selected.
@@ -67,9 +78,13 @@ export default async function SearchPage({
       ? isKo
         ? station.name_ko
         : station.name_en
-      : (filters.q ?? null);
+      : university
+        ? isKo
+          ? (university.short_name_ko ?? university.name_ko)
+          : university.name_en
+        : (filters.q ?? null);
 
-  const anchor = region ?? station;
+  const anchor = region ?? station ?? university;
   const center =
     anchor?.lat != null && anchor?.lng != null
       ? { lat: anchor.lat, lng: anchor.lng }
@@ -92,6 +107,14 @@ export default async function SearchPage({
       hint_ko: s.lines_ko.join(" · "),
       hint_en: s.lines_en.join(" · "),
     })),
+    ...universities.map((u) => ({
+      kind: "university" as const,
+      slug: u.slug,
+      name_ko: u.name_ko,
+      name_en: u.name_en,
+      hint_ko: u.city_ko,
+      hint_en: u.city_ko,
+    })),
   ];
 
   return (
@@ -106,9 +129,6 @@ export default async function SearchPage({
             ? t("resultsIn", { location: locationLabel })
             : t("resultsCount", { count: properties.length })}
         </h1>
-        <p className="mt-1 text-sm text-ink-500">
-          {t("resultsCount", { count: properties.length })}
-        </p>
       </div>
 
       <div className="mt-4 border-b border-ink-200 pb-4">
@@ -116,7 +136,18 @@ export default async function SearchPage({
       </div>
 
       <div className="mt-6">
-        <SearchResults properties={properties} center={center} />
+        <SearchResults
+          properties={properties}
+          center={center}
+          filters={{
+            gender: filters.gender,
+            propertyType: filters.propertyType,
+            housingCategory: filters.housingCategory,
+            minPrice: filters.minPrice,
+            maxPrice: filters.maxPrice,
+            university: filters.university,
+          }}
+        />
       </div>
     </div>
   );

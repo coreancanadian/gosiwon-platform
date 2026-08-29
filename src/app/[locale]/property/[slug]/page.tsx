@@ -24,6 +24,7 @@ import { AmenitySection } from "@/components/AmenitySection";
 import { ContactHostCard } from "@/components/ContactHostCard";
 import { ClaimBanner } from "@/components/ClaimBanner";
 import { KakaoMap } from "@/components/KakaoMap";
+import { GenderGradientDefs } from "@/components/GenderGradientDefs";
 import type { Locale } from "@/i18n/routing";
 import { formatKrw, formatSqm } from "@/lib/format";
 import { publicImageUrl } from "@/lib/storage";
@@ -298,6 +299,7 @@ export default async function PropertyPage({ params }: Props) {
             </h2>
             <p className="mt-1.5 text-sm text-ink-500">{address}</p>
 
+            <GenderGradientDefs />
             <div className="mt-4 h-80 w-full overflow-hidden rounded-[var(--radius-card)]">
               {property.lat != null && property.lng != null ? (
                 <KakaoMap
@@ -307,7 +309,7 @@ export default async function PropertyPage({ params }: Props) {
                       lat: property.lat,
                       lng: property.lng,
                       label: name,
-                      badge: name,
+                      gender: property.gender,
                     },
                   ]}
                   center={{ lat: property.lat, lng: property.lng }}

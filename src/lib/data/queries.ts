@@ -11,6 +11,7 @@ import {
   type PropertyWithRelations,
   type Region,
   type SubwayStation,
+  type University,
 } from "@/lib/types/database";
 import { TYPES_BY_CATEGORY } from "@/lib/search-bands";
 import { SEED_REGIONS, SEED_STATIONS } from "./seed-reference";
@@ -79,6 +80,41 @@ export async function getAmenities(): Promise<Amenity[]> {
   return data ?? [];
 }
 
+/**
+ * Universities, ranked by how many listings name them.
+ *
+ * Empty when migration 0009 hasn't run — callers render nothing rather than
+ * failing the whole page.
+ */
+export async function getUniversities(featuredOnly = false): Promise<University[]> {
+  if (!isSupabaseConfigured()) return [];
+
+  const supabase = await createClient();
+  let query = supabase.from("universities").select("*");
+  if (featuredOnly) query = query.eq("is_featured", true);
+
+  const { data, error } = await query
+    .order("sort_order")
+    .order("listing_count", { ascending: false });
+
+  if (error) return [];
+  return data ?? [];
+}
+
+export async function getUniversityBySlug(
+  slug: string,
+): Promise<University | null> {
+  if (!isSupabaseConfigured()) return null;
+
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("universities")
+    .select("*")
+    .eq("slug", slug)
+    .maybeSingle();
+  return data ?? null;
+}
+
 // ---------------------------------------------------------------------------
 // Listings
 // ---------------------------------------------------------------------------
@@ -91,6 +127,8 @@ export interface SearchFilters {
   propertyType?: PropertyType;
   /** Private room vs shared living. Ignored when propertyType is set. */
   housingCategory?: HousingCategory;
+  /** Exact 대학교 name as it appears in properties.nearby_universities. */
+  university?: string;
   minPrice?: number;
   maxPrice?: number;
   sort?: "recommended" | "price_asc" | "price_desc" | "newest";
@@ -133,6 +171,12 @@ function applyDemoFilters(filters: SearchFilters): DemoProperty[] {
   } else if (filters.housingCategory) {
     results = results.filter(
       (p) => housingCategoryOf(p.property_type) === filters.housingCategory,
+    );
+  }
+
+  if (filters.university) {
+    results = results.filter((p) =>
+      p.nearby_universities.includes(filters.university!),
     );
   }
 
@@ -219,6 +263,10 @@ export async function searchProperties(
     // Filter on the concrete types rather than the generated column so this
     // still works against a schema generated before migration 0005.
     query = query.in("property_type", TYPES_BY_CATEGORY[filters.housingCategory]);
+  }
+  // nearby_universities is a GIN-indexed text[], so containment is indexed.
+  if (filters.university) {
+    query = query.contains("nearby_universities", [filters.university]);
   }
   if (filters.minPrice != null) query = query.gte("price_max", filters.minPrice);
   if (filters.maxPrice != null) query = query.lte("price_min", filters.maxPrice);

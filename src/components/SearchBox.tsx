@@ -2,12 +2,12 @@
 
 import { useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { Search, MapPin, TrainFront } from "lucide-react";
+import { Search, MapPin, TrainFront, GraduationCap } from "lucide-react";
 import { useRouter } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 
 export interface SearchOption {
-  kind: "region" | "station";
+  kind: "region" | "station" | "university";
   slug: string;
   name_ko: string;
   name_en: string;
@@ -53,8 +53,7 @@ export function SearchBox({
 
   function go(option?: SearchOption) {
     if (option) {
-      const param = option.kind === "region" ? "region" : "station";
-      router.push(`/search?${param}=${encodeURIComponent(option.slug)}`);
+      router.push(`/search?${option.kind}=${encodeURIComponent(option.slug)}`);
       return;
     }
     const trimmed = query.trim();
@@ -146,8 +145,10 @@ export function SearchBox({
                   <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ink-100 text-ink-500">
                     {option.kind === "region" ? (
                       <MapPin className="h-4 w-4" aria-hidden />
-                    ) : (
+                    ) : option.kind === "station" ? (
                       <TrainFront className="h-4 w-4" aria-hidden />
+                    ) : (
+                      <GraduationCap className="h-4 w-4" aria-hidden />
                     )}
                   </span>
                   <span className="min-w-0">
@@ -156,7 +157,13 @@ export function SearchBox({
                     </span>
                     <span className="block truncate text-xs text-ink-400">
                       {hint(option) ??
-                        t(option.kind === "region" ? "suggestionsRegions" : "suggestionsStations")}
+                        t(
+                          option.kind === "region"
+                            ? "suggestionsRegions"
+                            : option.kind === "station"
+                              ? "suggestionsStations"
+                              : "suggestionsUniversities",
+                        )}
                     </span>
                   </span>
                 </button>

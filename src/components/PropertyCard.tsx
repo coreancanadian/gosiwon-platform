@@ -14,11 +14,14 @@ import {
 export function PropertyCard({
   property,
   isActive = false,
+  isSelected = false,
   onHover,
   imageUrl,
 }: {
   property: PropertyWithRelations;
   isActive?: boolean;
+  /** Picked from the map — a stronger, persistent highlight than hover. */
+  isSelected?: boolean;
   onHover?: (id: string | null) => void;
   imageUrl?: string | null;
 }) {
@@ -41,9 +44,11 @@ export function PropertyCard({
       onFocus={() => onHover?.(property.id)}
       onBlur={() => onHover?.(null)}
       className={`group flex gap-4 rounded-[var(--radius-card)] border p-3 transition ${
-        isActive
-          ? "border-brand-400 bg-brand-50/40 shadow-sm"
-          : "border-transparent hover:border-ink-200 hover:bg-ink-50"
+        isSelected
+          ? "border-ink-900 bg-brand-50/60 shadow-md ring-2 ring-ink-900/10"
+          : isActive
+            ? "border-brand-400 bg-brand-50/40 shadow-sm"
+            : "border-transparent hover:border-ink-200 hover:bg-ink-50"
       }`}
     >
       <div className="relative h-32 w-40 shrink-0 overflow-hidden rounded-xl bg-ink-100 sm:h-36 sm:w-48">

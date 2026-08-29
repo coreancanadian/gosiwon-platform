@@ -25,7 +25,9 @@
     "noListings": "Coming soon",
     "suggestionsRegions": "Areas",
     "suggestionsStations": "Subway stations",
-    "noSuggestions": "No matches found"
+    "noSuggestions": "No matches found",
+    "universityHeading": "Near major universities",
+    "suggestionsUniversities": "Universities"
   },
   "Search": {
     "resultsIn": "Stays in {location}",
@@ -54,7 +56,9 @@
       "over800k": "Over ₩800,000"
     },
     "anyGender": "Any gender",
-    "anyType": "Any type"
+    "anyType": "Any type",
+    "resultsInView": "{count} in this area",
+    "universityHeading": "University"
   },
   "Property": {
     "viewAllPhotos": "View all photos",

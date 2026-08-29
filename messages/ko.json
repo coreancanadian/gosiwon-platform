@@ -25,7 +25,9 @@
     "noListings": "준비 중",
     "suggestionsRegions": "지역",
     "suggestionsStations": "지하철역",
-    "noSuggestions": "검색 결과가 없습니다"
+    "noSuggestions": "검색 결과가 없습니다",
+    "universityHeading": "주요 대학교 주변",
+    "suggestionsUniversities": "대학교"
   },
   "Search": {
     "resultsIn": "{location}의 매물",
@@ -54,7 +56,9 @@
       "over800k": "80만원 이상"
     },
     "anyGender": "성별 전체",
-    "anyType": "유형 전체"
+    "anyType": "유형 전체",
+    "resultsInView": "이 지역에 {count}개",
+    "universityHeading": "대학교"
   },
   "Property": {
     "viewAllPhotos": "사진 모두 보기",

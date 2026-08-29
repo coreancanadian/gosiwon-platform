@@ -133,6 +133,24 @@ export type AmenityCategory =
   | "provided"
   | "shared";
 
+export type University = {
+  id: string;
+  slug: string;
+  /** Must equal the value inside properties.nearby_universities. */
+  name_ko: string;
+  name_en: string;
+  short_name_ko: string | null;
+  city_ko: string | null;
+  city_en: string | null;
+  lat: number | null;
+  lng: number | null;
+  image_url: string | null;
+  listing_count: number;
+  is_featured: boolean;
+  sort_order: number;
+  created_at: string;
+};
+
 export type Region = {
   id: string;
   slug: string;
@@ -321,6 +339,7 @@ export interface Database {
       host_subscriptions: Table<HostSubscription>;
       property_claims: Table<PropertyClaim>;
       stays: Table<Stay>;
+      universities: Table<University>;
       stay_reviews: Table<StayReview>;
     };
     Views: Record<string, never>;

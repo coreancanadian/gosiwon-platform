@@ -1,16 +1,23 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { MapPinned } from "lucide-react";
+import { buildPinElement } from "./map-pin";
+import type { GenderPolicy } from "@/lib/types/database";
 
 export interface MapMarker {
   id: string;
   lat: number;
   lng: number;
   label: string;
-  /** Rendered inside the pin — usually the price. */
-  badge?: string;
-  href?: string;
+  gender: GenderPolicy;
+}
+
+export interface MapBounds {
+  swLat: number;
+  swLng: number;
+  neLat: number;
+  neLng: number;
 }
 
 declare global {
@@ -19,26 +26,31 @@ declare global {
   }
 }
 
-// Minimal shape of the parts of the Kakao Maps SDK we actually touch.
 interface KakaoLatLng {
   getLat(): number;
   getLng(): number;
+}
+interface KakaoBounds {
+  extend(ll: KakaoLatLng): void;
+  getSouthWest(): KakaoLatLng;
+  getNorthEast(): KakaoLatLng;
+}
+interface KakaoMapInstance {
+  setBounds(bounds: object, ...padding: number[]): void;
+  setCenter(ll: KakaoLatLng): void;
+  setLevel(level: number): void;
+  getBounds(): KakaoBounds;
+  relayout(): void;
 }
 interface KakaoNamespace {
   maps: {
     load(cb: () => void): void;
     LatLng: new (lat: number, lng: number) => KakaoLatLng;
-    LatLngBounds: new () => { extend(ll: KakaoLatLng): void; isEmpty(): boolean };
+    LatLngBounds: new () => KakaoBounds;
     Map: new (
       container: HTMLElement,
       options: { center: KakaoLatLng; level: number },
-    ) => {
-      setBounds(bounds: object, ...padding: number[]): void;
-      setCenter(ll: KakaoLatLng): void;
-      setLevel(level: number): void;
-      /** Re-measures the container; needed if it resized after init. */
-      relayout(): void;
-    };
+    ) => KakaoMapInstance;
     CustomOverlay: new (options: {
       position: KakaoLatLng;
       content: HTMLElement;
@@ -69,7 +81,6 @@ function loadKakaoSdk(appKey: string): Promise<KakaoNamespace> {
     const script = document.createElement("script");
     script.id = SDK_ID;
     script.async = true;
-    // autoload=false so we control init timing via kakao.maps.load().
     script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${appKey}&autoload=false`;
     script.addEventListener("load", onReady);
     script.addEventListener("error", () => reject(new Error("sdk-error")));
@@ -77,44 +88,60 @@ function loadKakaoSdk(appKey: string): Promise<KakaoNamespace> {
   });
 }
 
-function buildPin(marker: MapMarker, isActive: boolean): HTMLElement {
-  const el = document.createElement("div");
-  el.className = [
-    "cursor-pointer select-none rounded-full border px-2.5 py-1 text-xs font-semibold shadow-md transition",
-    isActive
-      ? "border-brand-600 bg-brand-500 text-white scale-110"
-      : "border-ink-200 bg-white text-ink-800 hover:border-ink-400",
-  ].join(" ");
-  el.textContent = marker.badge ?? marker.label;
-  el.title = marker.label;
-  return el;
-}
-
 export function KakaoMap({
   markers,
   activeId,
+  selectedId,
   onMarkerClick,
+  onBoundsChange,
   center,
+  /** Fit the view to the markers. Off once the user takes control by panning. */
+  autoFit = true,
   className = "",
 }: {
   markers: MapMarker[];
   activeId?: string | null;
+  selectedId?: string | null;
   onMarkerClick?: (id: string) => void;
+  onBoundsChange?: (bounds: MapBounds) => void;
   center?: { lat: number; lng: number };
+  autoFit?: boolean;
   className?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<InstanceType<KakaoNamespace["maps"]["Map"]> | null>(null);
-  const overlaysRef = useRef<Map<string, { overlay: { setMap(m: object | null): void; setZIndex(z: number): void }; el: HTMLElement }>>(new Map());
-  const appKey = process.env.NEXT_PUBLIC_KAKAO_MAP_KEY;
+  const mapRef = useRef<KakaoMapInstance | null>(null);
+  const overlaysRef = useRef<
+    Map<string, { overlay: { setMap(m: object | null): void; setZIndex(z: number): void }; el: HTMLElement }>
+  >(new Map());
+  // Holds the latest callback so the map's "idle" listener never has to be
+  // torn down and re-registered when the parent re-renders.
+  const boundsCbRef = useRef(onBoundsChange);
+  useEffect(() => {
+    boundsCbRef.current = onBoundsChange;
+  }, [onBoundsChange]);
 
-  // Whether a key exists is known at render time — deriving it here avoids a
-  // needless cascading render from setting it inside the effect.
+  const appKey = process.env.NEXT_PUBLIC_KAKAO_MAP_KEY;
   const [status, setStatus] = useState<"loading" | "ready" | "no-key" | "error">(
     appKey ? "loading" : "no-key",
   );
 
-  // Boot the SDK and create the map once.
+  // Timestamp until which idle events are treated as our own doing.
+  const suppressUntilRef = useRef(0);
+
+  const emitBounds = useCallback(() => {
+    const map = mapRef.current;
+    if (!map || !boundsCbRef.current) return;
+    const b = map.getBounds();
+    const sw = b.getSouthWest();
+    const ne = b.getNorthEast();
+    boundsCbRef.current({
+      swLat: sw.getLat(),
+      swLng: sw.getLng(),
+      neLat: ne.getLat(),
+      neLng: ne.getLng(),
+    });
+  }, []);
+
   useEffect(() => {
     if (!appKey) return;
     let cancelled = false;
@@ -122,13 +149,24 @@ export function KakaoMap({
     loadKakaoSdk(appKey)
       .then((kakao) => {
         if (cancelled || !containerRef.current) return;
-        mapRef.current = new kakao.maps.Map(containerRef.current, {
-          center: new kakao.maps.LatLng(
-            center?.lat ?? 37.5665,
-            center?.lng ?? 126.978,
-          ),
+        const map = new kakao.maps.Map(containerRef.current, {
+          center: new kakao.maps.LatLng(center?.lat ?? 37.5665, center?.lng ?? 126.978),
           level: 6,
         });
+        mapRef.current = map;
+        suppressUntilRef.current = Date.now() + 900;
+
+        // "idle" fires for our own setBounds/setCenter as well as for user
+        // panning, and gating on "zoom_changed" does not help — fitting the
+        // view changes the zoom, so a fit looks exactly like a user zoom.
+        //
+        // Instead the fit marks a short window during which idle events are
+        // ignored. Anything after that window is genuinely the user.
+        kakao.maps.event.addListener(map, "idle", () => {
+          if (Date.now() < suppressUntilRef.current) return;
+          emitBounds();
+        });
+
         setStatus("ready");
       })
       .catch(() => {
@@ -138,11 +176,10 @@ export function KakaoMap({
     return () => {
       cancelled = true;
     };
-    // Intentionally one-shot: marker/center updates are handled below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appKey]);
 
-  // Sync markers whenever the result set changes.
+  // Rebuild overlays whenever the marker set changes.
   useEffect(() => {
     const kakao = window.kakao;
     const map = mapRef.current;
@@ -155,58 +192,69 @@ export function KakaoMap({
 
     markers.forEach((marker) => {
       const position = new kakao.maps.LatLng(marker.lat, marker.lng);
-      const el = buildPin(marker, marker.id === activeId);
+      const el = buildPinElement({
+        gender: marker.gender,
+        label: marker.label,
+        isActive: marker.id === activeId,
+        isSelected: marker.id === selectedId,
+      });
       el.addEventListener("click", () => onMarkerClick?.(marker.id));
 
       const overlay = new kakao.maps.CustomOverlay({
         position,
         content: el,
-        yAnchor: 1.2,
+        yAnchor: 1.1,
       });
       overlay.setMap(map);
       overlaysRef.current.set(marker.id, { overlay, el });
       bounds.extend(position);
     });
 
-    if (markers.length > 1) {
-      map.setBounds(bounds, 48, 48, 48, 48);
-    } else if (markers.length === 1) {
-      map.setCenter(new kakao.maps.LatLng(markers[0].lat, markers[0].lng));
-      map.setLevel(4);
-    }
-
-    // Kakao measures the container once, at construction. If the map was built
-    // before layout settled — a slow first paint, a font swap, the sticky
-    // column resolving its height — it keeps those stale dimensions and renders
-    // the wrong region entirely. Re-measure whenever the container changes size
-    // and re-apply the fit.
-    const container = containerRef.current;
-    if (!container || typeof ResizeObserver === "undefined") return;
-
-    const observer = new ResizeObserver(() => {
-      map.relayout();
+    const fit = () => {
+      if (!autoFit) return;
+      // Cover the animation plus a little slack, so the idle it produces is
+      // not mistaken for the user moving the map.
+      suppressUntilRef.current = Date.now() + 900;
       if (markers.length > 1) map.setBounds(bounds, 48, 48, 48, 48);
       else if (markers.length === 1) {
         map.setCenter(new kakao.maps.LatLng(markers[0].lat, markers[0].lng));
+        map.setLevel(4);
       }
+    };
+    fit();
+
+    // Kakao measures the container once, at construction. If layout settles
+    // afterwards it keeps stale dimensions and renders the wrong region, so
+    // re-measure on resize and re-apply the fit.
+    const container = containerRef.current;
+    if (!container || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => {
+      map.relayout();
+      fit();
     });
     observer.observe(container);
     return () => observer.disconnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [markers, status]);
+  }, [markers, status, autoFit]);
 
-  // Restyle the active pin without rebuilding every overlay.
+  // Restyle highlighted pins without rebuilding every overlay.
   useEffect(() => {
     if (status !== "ready") return;
     overlaysRef.current.forEach(({ overlay, el }, id) => {
       const marker = markers.find((m) => m.id === id);
       if (!marker) return;
       const isActive = id === activeId;
-      const fresh = buildPin(marker, isActive);
+      const isSelected = id === selectedId;
+      const fresh = buildPinElement({
+        gender: marker.gender,
+        label: marker.label,
+        isActive,
+        isSelected,
+      });
       el.className = fresh.className;
-      overlay.setZIndex(isActive ? 10 : 1);
+      overlay.setZIndex(isSelected ? 20 : isActive ? 10 : 1);
     });
-  }, [activeId, markers, status]);
+  }, [activeId, selectedId, markers, status]);
 
   if (status === "no-key" || status === "error") {
     return (
@@ -221,18 +269,13 @@ export function KakaoMap({
           <p className="mt-1 max-w-xs text-xs text-ink-500">
             {status === "no-key" ? (
               <>
-                Add <code className="font-mono">NEXT_PUBLIC_KAKAO_MAP_KEY</code>{" "}
-                to <code className="font-mono">.env.local</code> to enable the
-                map.{" "}
-                {markers.length === 1
-                  ? "1 listing has"
-                  : `${markers.length} listings have`}{" "}
-                coordinates ready.
+                Add <code className="font-mono">NEXT_PUBLIC_KAKAO_MAP_KEY</code> to{" "}
+                <code className="font-mono">.env.local</code>.
               </>
             ) : (
               <>
-                Check that your Kakao app has this domain registered under Web
-                platform settings.
+                Register this domain under the JavaScript key&apos;s SDK domain
+                settings in the Kakao console.
               </>
             )}
           </p>
