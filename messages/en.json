@@ -58,7 +58,10 @@
     "anyGender": "Any gender",
     "anyType": "Any type",
     "resultsInView": "{count} in this area",
-    "universityHeading": "University"
+    "universityHeading": "University",
+    "noneInView": "No listings in this area",
+    "noneInViewHint": "Pan or zoom out to browse somewhere else.",
+    "browseAll": "Browse listings"
   },
   "Property": {
     "viewAllPhotos": "View all photos",

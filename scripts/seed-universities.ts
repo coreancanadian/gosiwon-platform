@@ -27,8 +27,12 @@ const TOP_N = flag("top") ? parseInt(flag("top")!, 10) : 100;
 const KAKAO_KEY = process.env.KAKAO_REST_API_KEY;
 
 /**
- * The eight shown on the home page. Chosen for name recognition among the
- * international students this site serves, and all have real inventory nearby.
+ * The ten shown on the home page — two full rows of the five-column grid, the
+ * same shape as the district and subway sections.
+ *
+ * Chosen for name recognition among international students, weighted by actual
+ * nearby inventory. 홍익대 and 숭실대 round it out: 홍대 is one of the areas
+ * foreigners already know by name, and 숭실대 is third overall by listing count.
  * Everything else stays searchable but untiled.
  */
 const FEATURED = [
@@ -40,6 +44,8 @@ const FEATURED = [
   "경희대학교",
   "성균관대학교",
   "이화여자대학교",
+  "홍익대학교",
+  "숭실대학교",
 ];
 
 

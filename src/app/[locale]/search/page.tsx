@@ -70,6 +70,14 @@ export default async function SearchPage({
   // Heading + initial map centre come from whichever place was selected.
   const region = regions.find((r) => r.slug === regionSlug);
   const station = stations.find((s) => s.slug === stationSlug);
+  const regionLabel = region ? (isKo ? region.name_ko : region.name_en) : "";
+  const stationLabel = station ? (isKo ? station.name_ko : station.name_en) : "";
+  const universityLabel = university
+    ? isKo
+      ? (university.short_name_ko ?? university.name_ko)
+      : university.name_en
+    : "";
+
   const locationLabel = region
     ? isKo
       ? region.name_ko
@@ -125,9 +133,7 @@ export default async function SearchPage({
 
       <div className="mt-8">
         <h1 className="text-xl font-semibold tracking-tight text-ink-900 sm:text-2xl">
-          {locationLabel
-            ? t("resultsIn", { location: locationLabel })
-            : t("resultsCount", { count: properties.length })}
+          {locationLabel ? t("resultsIn", { location: locationLabel }) : t("browseAll")}
         </h1>
       </div>
 
@@ -139,14 +145,31 @@ export default async function SearchPage({
         <SearchResults
           properties={properties}
           center={center}
+          /* Attribute filters only. The place deliberately does NOT travel to
+             the client: it seeds the first result set and the viewport, but
+             once the user is moving the map, filtering by the school or
+             district they started from would hide listings plainly visible on
+             screen. */
           filters={{
             gender: filters.gender,
             propertyType: filters.propertyType,
             housingCategory: filters.housingCategory,
             minPrice: filters.minPrice,
             maxPrice: filters.maxPrice,
-            university: filters.university,
           }}
+          place={
+            region
+              ? { param: "region", slug: region.slug, label: regionLabel }
+              : station
+                ? { param: "station", slug: station.slug, label: stationLabel }
+                : university
+                  ? {
+                      param: "university",
+                      slug: university.slug,
+                      label: universityLabel,
+                    }
+                  : null
+          }
         />
       </div>
     </div>

@@ -103,7 +103,8 @@ export function KakaoMap({
   activeId?: string | null;
   selectedId?: string | null;
   onMarkerClick?: (id: string) => void;
-  onBoundsChange?: (bounds: MapBounds) => void;
+  /** Fired on every idle. `userInitiated` is false for our own fitting. */
+  onBoundsChange?: (bounds: MapBounds, userInitiated: boolean) => void;
   center?: { lat: number; lng: number };
   autoFit?: boolean;
   className?: string;
@@ -128,18 +129,21 @@ export function KakaoMap({
   // Timestamp until which idle events are treated as our own doing.
   const suppressUntilRef = useRef(0);
 
-  const emitBounds = useCallback(() => {
+  const emitBounds = useCallback((userInitiated: boolean) => {
     const map = mapRef.current;
     if (!map || !boundsCbRef.current) return;
     const b = map.getBounds();
     const sw = b.getSouthWest();
     const ne = b.getNorthEast();
-    boundsCbRef.current({
-      swLat: sw.getLat(),
-      swLng: sw.getLng(),
-      neLat: ne.getLat(),
-      neLng: ne.getLng(),
-    });
+    boundsCbRef.current(
+      {
+        swLat: sw.getLat(),
+        swLng: sw.getLng(),
+        neLat: ne.getLat(),
+        neLng: ne.getLng(),
+      },
+      userInitiated,
+    );
   }, []);
 
   useEffect(() => {
@@ -162,9 +166,11 @@ export function KakaoMap({
         //
         // Instead the fit marks a short window during which idle events are
         // ignored. Anything after that window is genuinely the user.
+        // Always report the viewport — the parent needs it to refetch on
+        // demand even when the user hasn't panned yet — but say whether the
+        // movement came from the user or from our own fitting.
         kakao.maps.event.addListener(map, "idle", () => {
-          if (Date.now() < suppressUntilRef.current) return;
-          emitBounds();
+          emitBounds(Date.now() >= suppressUntilRef.current);
         });
 
         setStatus("ready");

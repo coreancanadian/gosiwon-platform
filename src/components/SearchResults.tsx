@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { List, Loader2, Map as MapIcon } from "lucide-react";
+import { List, Loader2, Map as MapIcon, X } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "@/i18n/navigation";
 import { PropertyCard } from "./PropertyCard";
 import { KakaoMap, type MapBounds, type MapMarker } from "./KakaoMap";
 import { genderSwatch } from "./map-pin";
@@ -39,14 +41,24 @@ function coverUrl(property: PropertyWithRelations): string | null {
   return cover ? publicImageUrl(cover.storage_path) : null;
 }
 
+/** The region / station / university the user arrived from, if any. */
+export interface PlaceContext {
+  /** URL param that selected it, e.g. "university". */
+  param: "region" | "station" | "university";
+  slug: string;
+  label: string;
+}
+
 export function SearchResults({
   properties: initialProperties,
   center,
   filters = {},
+  place = null,
 }: {
   properties: PropertyWithRelations[];
   center?: { lat: number; lng: number };
   filters?: ActiveFilters;
+  place?: PlaceContext | null;
 }) {
   const t = useTranslations("Search");
   const tEnum = useTranslations("Enums");
@@ -61,24 +73,48 @@ export function SearchResults({
   // Stop re-fitting the viewport once the user starts driving the map.
   const [userMovedMap, setUserMovedMap] = useState(false);
 
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const listRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef(new Map<string, HTMLElement>());
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Set by a pin click so hovering a card never yanks the list around.
   const pendingScrollRef = useRef<string | null>(null);
+  // Latest viewport, kept even when the user hasn't panned, so clearing the
+  // place can refetch immediately without waiting for a map movement.
+  const lastBoundsRef = useRef<MapBounds | null>(null);
 
-  // A new server result set — different region, station, university, or filter
-  // — discards whatever the map had narrowed to and re-fits the viewport.
-  //
-  // Adjusting state during render rather than in an effect: React's documented
-  // way to reset state when a prop changes, and it avoids the extra render an
-  // effect would cause.
+  /**
+   * A new server result set replaces the list.
+   *
+   * Whether the viewport also resets depends on why the props changed: picking
+   * a NEW place should fly the map there, but CLEARING the place should leave
+   * the map exactly where the user left it — they asked to widen the results,
+   * not to be thrown somewhere else.
+   *
+   * Adjusting state during render rather than in an effect is React's
+   * documented way to reset state when a prop changes.
+   */
+  const placeKey = place ? `${place.param}:${place.slug}` : "";
   const [syncedProperties, setSyncedProperties] = useState(initialProperties);
+  const [syncedPlaceKey, setSyncedPlaceKey] = useState(placeKey);
   if (syncedProperties !== initialProperties) {
+    const movedToNewPlace = Boolean(placeKey) && placeKey !== syncedPlaceKey;
+
     setSyncedProperties(initialProperties);
-    setProperties(initialProperties);
-    setUserMovedMap(false);
+    setSyncedPlaceKey(placeKey);
     setSelectedId(null);
+
+    // Once the map is in charge it owns the list. Adopting the server's set
+    // here would undo that — clearing the place navigates, and the unfiltered
+    // response would replace the viewport's results with a nationwide list
+    // labelled as if it were "in this area".
+    if (movedToNewPlace || !userMovedMap) {
+      setProperties(initialProperties);
+      if (movedToNewPlace) setUserMovedMap(false);
+    }
   }
 
   /**
@@ -126,15 +162,30 @@ export function SearchResults({
   );
 
   const onBoundsChange = useCallback(
-    (bounds: MapBounds) => {
-      // Only ever called after a real pan or zoom — the map filters out the
-      // idle events caused by our own fitting.
+    (bounds: MapBounds, userInitiated: boolean) => {
+      lastBoundsRef.current = bounds;
+      if (!userInitiated) return;
       setUserMovedMap(true);
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => fetchInBounds(bounds), 350);
     },
     [fetchInBounds],
   );
+
+  /**
+   * Drop the starting place and keep browsing from here.
+   *
+   * The URL param goes so the heading and a shared link agree with what is on
+   * screen, and the current viewport is refetched immediately rather than
+   * waiting for the user to nudge the map.
+   */
+  const clearPlace = useCallback(() => {
+    const next = new URLSearchParams(searchParams.toString());
+    if (place) next.delete(place.param);
+    setUserMovedMap(true);
+    if (lastBoundsRef.current) fetchInBounds(lastBoundsRef.current);
+    router.replace(`${pathname}?${next.toString()}`, { scroll: false });
+  }, [fetchInBounds, pathname, place, router, searchParams]);
 
   useEffect(() => {
     return () => {
@@ -217,20 +268,28 @@ export function SearchResults({
 
   const activeId = hoveredId ?? selectedId;
 
-  if (properties.length === 0 && !loading) {
-    return (
-      <div className="rounded-[var(--radius-card)] border border-ink-200 bg-ink-50 px-6 py-16 text-center">
-        <p className="text-base font-medium text-ink-800">{t("noResults")}</p>
-        <p className="mt-1 text-sm text-ink-500">{t("noResultsHint")}</p>
-      </div>
-    );
-  }
-
   return (
     <>
       <GenderGradientDefs />
 
       <div className="mb-3 flex flex-wrap items-center gap-3">
+        {/* The place that seeded this view. Removable: once the user is
+            browsing the map, restricting results to the school or district
+            they started from only hides inventory they can plainly see. */}
+        {place ? (
+          <button
+            type="button"
+            onClick={clearPlace}
+            className="flex items-center gap-1.5 rounded-full border border-ink-300 bg-ink-900 py-1.5 pr-2 pl-3.5 text-sm font-medium text-white transition hover:bg-ink-700"
+            aria-label={`${place.label} ✕`}
+          >
+            {place.label}
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/20">
+              <X className="h-3 w-3" aria-hidden />
+            </span>
+          </button>
+        ) : null}
+
         {/* Legend — the pins encode who a place accepts, not its price. */}
         <div className="flex flex-wrap items-center gap-3 text-xs text-ink-500">
           {(["male", "female", "any"] as GenderPolicy[]).map((g) => (
@@ -290,6 +349,17 @@ export function SearchResults({
             mobileView === "map" ? "hidden lg:flex" : ""
           }`}
         >
+          {properties.length === 0 ? (
+            <div className="rounded-[var(--radius-card)] border border-ink-200 bg-ink-50 px-6 py-12 text-center">
+              <p className="text-base font-medium text-ink-800">
+                {userMovedMap ? t("noneInView") : t("noResults")}
+              </p>
+              <p className="mt-1 text-sm text-ink-500">
+                {userMovedMap ? t("noneInViewHint") : t("noResultsHint")}
+              </p>
+            </div>
+          ) : null}
+
           {properties.map((property) => (
             <div
               key={property.id}

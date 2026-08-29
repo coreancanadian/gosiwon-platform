@@ -285,6 +285,12 @@ export async function searchProperties(
       query = query.order("updated_at", { ascending: false });
   }
 
+  // No place filter means "everything" — cap it. The map refetches by
+  // viewport anyway, so a larger first page buys nothing but payload.
+  if (!filters.regionSlug && !filters.stationSlug && !filters.university) {
+    query = query.limit(300);
+  }
+
   const { data, error } = await query;
   if (error) throw new Error(`Search failed: ${error.message}`);
   // Cast: the hand-written Database type carries empty Relationships, so

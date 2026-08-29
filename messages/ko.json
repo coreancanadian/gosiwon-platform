@@ -58,7 +58,10 @@
     "anyGender": "성별 전체",
     "anyType": "유형 전체",
     "resultsInView": "이 지역에 {count}개",
-    "universityHeading": "대학교"
+    "universityHeading": "대학교",
+    "noneInView": "이 지역에는 매물이 없습니다",
+    "noneInViewHint": "지도를 움직이거나 축소해 다른 지역을 둘러보세요.",
+    "browseAll": "매물 둘러보기"
   },
   "Property": {
     "viewAllPhotos": "사진 모두 보기",
