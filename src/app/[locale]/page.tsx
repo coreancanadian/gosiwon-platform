@@ -110,6 +110,7 @@ export default async function HomePage({
             title={regionName(r)}
             subtitle={regionParent(r)}
             imageUrl={r.image_url}
+            kind="region"
           />
         ))}
       </TileGrid>
@@ -123,6 +124,8 @@ export default async function HomePage({
             title={stationName(s)}
             subtitle={stationLines(s)}
             imageUrl={s.image_url}
+            kind="station"
+            lines={s.lines_ko}
           />
         ))}
       </TileGrid>
@@ -139,6 +142,7 @@ export default async function HomePage({
                 u.listing_count > 0 ? t("listingCount", { count: u.listing_count }) : u.city_ko
               }
               imageUrl={u.image_url}
+              kind="university"
             />
           ))}
         </TileGrid>
