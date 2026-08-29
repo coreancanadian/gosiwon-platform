@@ -36,6 +36,8 @@ interface KakaoNamespace {
       setBounds(bounds: object, ...padding: number[]): void;
       setCenter(ll: KakaoLatLng): void;
       setLevel(level: number): void;
+      /** Re-measures the container; needed if it resized after init. */
+      relayout(): void;
     };
     CustomOverlay: new (options: {
       position: KakaoLatLng;
@@ -172,6 +174,24 @@ export function KakaoMap({
       map.setCenter(new kakao.maps.LatLng(markers[0].lat, markers[0].lng));
       map.setLevel(4);
     }
+
+    // Kakao measures the container once, at construction. If the map was built
+    // before layout settled — a slow first paint, a font swap, the sticky
+    // column resolving its height — it keeps those stale dimensions and renders
+    // the wrong region entirely. Re-measure whenever the container changes size
+    // and re-apply the fit.
+    const container = containerRef.current;
+    if (!container || typeof ResizeObserver === "undefined") return;
+
+    const observer = new ResizeObserver(() => {
+      map.relayout();
+      if (markers.length > 1) map.setBounds(bounds, 48, 48, 48, 48);
+      else if (markers.length === 1) {
+        map.setCenter(new kakao.maps.LatLng(markers[0].lat, markers[0].lng));
+      }
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [markers, status]);
 
