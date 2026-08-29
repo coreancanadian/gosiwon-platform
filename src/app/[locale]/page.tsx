@@ -101,6 +101,24 @@ export default async function HomePage({
         </div>
       </section>
 
+      {featuredUniversities.length > 0 ? (
+        <TileGrid heading={t("universityHeading")}>
+          {featuredUniversities.map((u) => (
+            <PlaceTile
+              key={u.slug}
+              href={`/search?university=${u.slug}`}
+              slug={u.slug}
+              title={universityName(u)}
+              subtitle={
+                u.listing_count > 0 ? t("listingCount", { count: u.listing_count }) : u.city_ko
+              }
+              imageUrl={u.image_url}
+              kind="university"
+            />
+          ))}
+        </TileGrid>
+      ) : null}
+
       <TileGrid heading={t("seoulHeading")}>
         {seoul.map((r) => (
           <PlaceTile
@@ -130,23 +148,6 @@ export default async function HomePage({
         ))}
       </TileGrid>
 
-      {featuredUniversities.length > 0 ? (
-        <TileGrid heading={t("universityHeading")}>
-          {featuredUniversities.map((u) => (
-            <PlaceTile
-              key={u.slug}
-              href={`/search?university=${u.slug}`}
-              slug={u.slug}
-              title={universityName(u)}
-              subtitle={
-                u.listing_count > 0 ? t("listingCount", { count: u.listing_count }) : u.city_ko
-              }
-              imageUrl={u.image_url}
-              kind="university"
-            />
-          ))}
-        </TileGrid>
-      ) : null}
     </div>
   );
 }
