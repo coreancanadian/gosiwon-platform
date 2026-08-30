@@ -334,5 +334,118 @@
     "support": "Support",
     "legal": "Legal",
     "copyright": "© {year} Gosiwon Space. All rights reserved."
+  },
+  "Legal": {
+    "lastUpdated": "Last updated: {date}",
+    "backHome": "Back to home",
+    "termsTitle": "Terms of Service",
+    "termsSections": [
+      {
+        "heading": "1. What this service is",
+        "body": "Gosiwon Space (\"the Service\") lists gosiwon, oneroomtel, and share-house listings across South Korea and connects prospective tenants with the hosts who operate them. The Service does not provide real-time booking, payment processing, or contract execution, and is not a party to any lease. All agreements, move-in terms, and payments are arranged directly between the tenant and the host."
+      },
+      {
+        "heading": "2. Where listing information comes from",
+        "body": "Some listings were published from publicly available information and may not yet be verified by their actual operator (\"unclaimed\"). Information on unclaimed listings may be inaccurate or out of date. An operator may request verification of their own listing, after which they are responsible for the accuracy of its information."
+      },
+      {
+        "heading": "3. Accounts",
+        "body": "Using the Service requires signing up with an email address, as either a tenant or a host. You are responsible for keeping your account information accurate and your password secure. Impersonating another person or registering with false information is prohibited."
+      },
+      {
+        "heading": "4. Inquiries and messaging",
+        "body": "A tenant may send an inquiry about a listing, which the host may accept or decline. If accepted, both parties' contact details may be shared with each other. Messages sent through the Service do not guarantee that a move-in will occur — that decision rests with the host."
+      },
+      {
+        "heading": "5. Fees",
+        "body": "Tenants may use the Service free of charge. The plan currently offered to hosts (\"Founding Host\") is also free. A paid plan may be introduced in the future; if so, it will not be applied retroactively to hosts already on the free plan, and any pricing change will be announced in advance."
+      },
+      {
+        "heading": "6. User conduct",
+        "body": "Users must not post false listings, publish discriminatory or unlawful move-in conditions, or harass or defraud other users. Violating this may result in account suspension or termination without prior notice."
+      },
+      {
+        "heading": "7. Limitation of liability",
+        "body": "The Service does not guarantee the accuracy of listing information, availability, or that any transaction between users will be completed. The Service is not generally liable for disputes between users, though it will take reasonable action on reported issues."
+      },
+      {
+        "heading": "8. Governing law",
+        "body": "These Terms are governed by the laws of the Republic of Korea."
+      }
+    ],
+    "privacyTitle": "Privacy Policy",
+    "privacySections": [
+      {
+        "heading": "1. Information we collect",
+        "body": "When you sign up, we collect your email address and name. Hosts may optionally add contact details such as a phone number, KakaoTalk ID, or WhatsApp. A listing's publicly listed business phone number may have been collected from a public source."
+      },
+      {
+        "heading": "2. Information you provide",
+        "body": "We store the messages, preferred move-in date, and expected stay length you enter when sending an inquiry. If you use the stay record (reputation) feature, a host and tenant may rate each other after a completed stay. That record is shared with a prospective host only when the tenant consents to share it on that specific application, and a user can always view their own record."
+      },
+      {
+        "heading": "3. How we use this information",
+        "body": "Collected information is used only to power listing search, deliver inquiries and messages, manage accounts, and improve the Service. A host's and tenant's contact details are shared with each other only once an inquiry is accepted, and are not disclosed to any other party."
+      },
+      {
+        "heading": "4. Third-party processing",
+        "body": "The Service uses Supabase (servers located in Seoul, South Korea) for its database and authentication, and Kakao Maps and Google Maps to display maps. Using the map may send your search terms and IP address to those providers. We do not sell personal information or share it with third parties for marketing purposes."
+      },
+      {
+        "heading": "5. Cookies",
+        "body": "The Service uses only essential cookies required to keep you signed in. It does not use advertising or tracking cookies."
+      },
+      {
+        "heading": "6. Retention and deletion",
+        "body": "Personal information is deleted without delay after account closure, except where retention is required by law. Stay reviews are kept for 3 years from the date they are written and then expire automatically."
+      },
+      {
+        "heading": "7. Your rights",
+        "body": "You may request access to, correction of, deletion of, or a restriction on the processing of your personal information, consistent with South Korea's Personal Information Protection Act (PIPA). Requests can be submitted through the support channel below."
+      },
+      {
+        "heading": "8. Children",
+        "body": "The Service is not directed at children under 14. If we become aware such information was collected, we will delete it."
+      },
+      {
+        "heading": "9. Changes to this policy",
+        "body": "We will announce any changes to this policy in advance through the Service."
+      },
+      {
+        "heading": "10. Contact",
+        "body": "For privacy-related questions, please reach out through the Service's support channel."
+      }
+    ],
+    "faqTitle": "Frequently Asked Questions",
+    "faqItems": [
+      {
+        "q": "What is this service?",
+        "a": "A place to browse gosiwon, oneroomtel, and share-house listings across Korea, and to contact the host directly. There is no real-time booking or payment."
+      },
+      {
+        "q": "Can I book a room instantly?",
+        "a": "No. Sending an inquiry lets the host review and accept or decline it. Once accepted, contact details are shared so you can arrange the rest directly."
+      },
+      {
+        "q": "Is this free to use?",
+        "a": "Yes for tenants — search, inquiries, and messaging are free. The plan currently offered to hosts is also free."
+      },
+      {
+        "q": "I run a place that's already listed, but I never signed up.",
+        "a": "Some listings were published from public information before their operator registered. Use \"Claim this listing\" on that listing's page to request verification, and management access is transferred to you once approved."
+      },
+      {
+        "q": "What is the stay record / reputation feature?",
+        "a": "After a completed stay, a host and tenant can rate each other. That record only reaches a new host when the tenant chooses to share it on that application — it's optional, and you can always view your own record."
+      },
+      {
+        "q": "Is the site available in English?",
+        "a": "Yes — use the language switch in the top right to move between Korean and English."
+      },
+      {
+        "q": "How do I get help?",
+        "a": "Please reach out through the Service's support channel."
+      }
+    ]
   }
 }
