@@ -6,7 +6,7 @@ import { List, Loader2, Map as MapIcon, X } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { PropertyCard } from "./PropertyCard";
-import { KakaoMap, type MapBounds, type MapMarker } from "./KakaoMap";
+import { MapView, type MapBounds, type MapMarker } from "./MapView";
 import { genderSwatch } from "./map-pin";
 import { GenderGradientDefs } from "./GenderGradientDefs";
 import { createClient } from "@/lib/supabase/client";
@@ -384,7 +384,7 @@ export function SearchResults({
             mobileView === "list" ? "hidden lg:block" : "h-[60vh]"
           }`}
         >
-          <KakaoMap
+          <MapView
             markers={markers}
             activeId={activeId}
             selectedId={selectedId}

@@ -3,22 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MapPinned } from "lucide-react";
 import { buildPinElement } from "./map-pin";
-import type { GenderPolicy } from "@/lib/types/database";
+import { useIdleSuppression } from "@/lib/use-idle-suppression";
+import type { MapProviderProps } from "./map-types";
 
-export interface MapMarker {
-  id: string;
-  lat: number;
-  lng: number;
-  label: string;
-  gender: GenderPolicy;
-}
-
-export interface MapBounds {
-  swLat: number;
-  swLng: number;
-  neLat: number;
-  neLng: number;
-}
+export type { MapMarker, MapBounds } from "./map-types";
 
 declare global {
   interface Window {
@@ -95,20 +83,9 @@ export function KakaoMap({
   onMarkerClick,
   onBoundsChange,
   center,
-  /** Fit the view to the markers. Off once the user takes control by panning. */
   autoFit = true,
   className = "",
-}: {
-  markers: MapMarker[];
-  activeId?: string | null;
-  selectedId?: string | null;
-  onMarkerClick?: (id: string) => void;
-  /** Fired on every idle. `userInitiated` is false for our own fitting. */
-  onBoundsChange?: (bounds: MapBounds, userInitiated: boolean) => void;
-  center?: { lat: number; lng: number };
-  autoFit?: boolean;
-  className?: string;
-}) {
+}: MapProviderProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<KakaoMapInstance | null>(null);
   const overlaysRef = useRef<
@@ -121,13 +98,12 @@ export function KakaoMap({
     boundsCbRef.current = onBoundsChange;
   }, [onBoundsChange]);
 
+  const { suppress, isSuppressed } = useIdleSuppression();
+
   const appKey = process.env.NEXT_PUBLIC_KAKAO_MAP_KEY;
   const [status, setStatus] = useState<"loading" | "ready" | "no-key" | "error">(
     appKey ? "loading" : "no-key",
   );
-
-  // Timestamp until which idle events are treated as our own doing.
-  const suppressUntilRef = useRef(0);
 
   const emitBounds = useCallback((userInitiated: boolean) => {
     const map = mapRef.current;
@@ -158,19 +134,13 @@ export function KakaoMap({
           level: 6,
         });
         mapRef.current = map;
-        suppressUntilRef.current = Date.now() + 900;
+        suppress(); // the initial render's own settle is not a user gesture
 
-        // "idle" fires for our own setBounds/setCenter as well as for user
-        // panning, and gating on "zoom_changed" does not help — fitting the
-        // view changes the zoom, so a fit looks exactly like a user zoom.
-        //
-        // Instead the fit marks a short window during which idle events are
-        // ignored. Anything after that window is genuinely the user.
         // Always report the viewport — the parent needs it to refetch on
-        // demand even when the user hasn't panned yet — but say whether the
+        // demand even before the user has panned — but flag whether the
         // movement came from the user or from our own fitting.
         kakao.maps.event.addListener(map, "idle", () => {
-          emitBounds(Date.now() >= suppressUntilRef.current);
+          emitBounds(!isSuppressed());
         });
 
         setStatus("ready");
@@ -218,9 +188,7 @@ export function KakaoMap({
 
     const fit = () => {
       if (!autoFit) return;
-      // Cover the animation plus a little slack, so the idle it produces is
-      // not mistaken for the user moving the map.
-      suppressUntilRef.current = Date.now() + 900;
+      suppress();
       if (markers.length > 1) map.setBounds(bounds, 48, 48, 48, 48);
       else if (markers.length === 1) {
         map.setCenter(new kakao.maps.LatLng(markers[0].lat, markers[0].lng));

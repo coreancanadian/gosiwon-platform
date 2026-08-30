@@ -23,7 +23,7 @@ import { PhotoGallery, type GalleryImage } from "@/components/PhotoGallery";
 import { AmenitySection } from "@/components/AmenitySection";
 import { ContactHostCard } from "@/components/ContactHostCard";
 import { ClaimBanner } from "@/components/ClaimBanner";
-import { KakaoMap } from "@/components/KakaoMap";
+import { MapView } from "@/components/MapView";
 import { GenderGradientDefs } from "@/components/GenderGradientDefs";
 import type { Locale } from "@/i18n/routing";
 import { formatKrw, formatSqm } from "@/lib/format";
@@ -302,7 +302,7 @@ export default async function PropertyPage({ params }: Props) {
             <GenderGradientDefs />
             <div className="mt-4 h-80 w-full overflow-hidden rounded-[var(--radius-card)]">
               {property.lat != null && property.lng != null ? (
-                <KakaoMap
+                <MapView
                   markers={[
                     {
                       id: property.id,
