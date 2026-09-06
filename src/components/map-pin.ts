@@ -73,3 +73,35 @@ export function buildPinElement({
 export function genderSwatch(gender: GenderPolicy): string {
   return personSvg(gender, 14);
 }
+
+// Distinct from both gender colours (blue/pink) and from every property pin,
+// so a searched place reads unmistakably as "you are here", not as a listing.
+const HIGHLIGHT_COLOUR = "#f97316"; // orange-500
+
+// Classic teardrop "place" marker shape — bigger and shaped differently from
+// the round property pins so it can never be mistaken for a listing.
+const PLACE_PATH =
+  "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7Z";
+
+/**
+ * A big, bright "you are here" marker for the school/city/subway a search
+ * started from — a bounding-box outline read as decoration and nobody
+ * noticed it; a bold pin with a pulsing ring is unmissable at a glance.
+ */
+export function buildHighlightPinElement(): HTMLElement {
+  const el = document.createElement("div");
+  el.setAttribute("aria-hidden", "true");
+  el.style.position = "relative";
+  el.style.width = "56px";
+  el.style.height = "64px";
+  el.style.pointerEvents = "none";
+
+  el.innerHTML = `
+    <span class="animate-ping" style="position:absolute;left:50%;bottom:2px;width:16px;height:16px;margin-left:-8px;border-radius:9999px;background:${HIGHLIGHT_COLOUR};opacity:0.55;"></span>
+    <svg viewBox="0 0 24 24" width="56" height="64" style="position:absolute;inset:0;filter:drop-shadow(0 3px 4px rgba(0,0,0,.45));">
+      <path fill="${HIGHLIGHT_COLOUR}" stroke="white" stroke-width="1" d="${PLACE_PATH}"/>
+      <circle cx="12" cy="9" r="3.4" fill="white"/>
+    </svg>
+  `;
+  return el;
+}
