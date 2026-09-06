@@ -159,14 +159,29 @@ export default async function SearchPage({
           }}
           place={
             region
-              ? { param: "region", slug: region.slug, label: regionLabel }
+              ? {
+                  param: "region",
+                  slug: region.slug,
+                  label: regionLabel,
+                  geocodeQuery: [region.name_en, region.parent_en, "South Korea"]
+                    .filter(Boolean)
+                    .join(", "),
+                }
               : station
-                ? { param: "station", slug: station.slug, label: stationLabel }
+                ? {
+                    param: "station",
+                    slug: station.slug,
+                    label: stationLabel,
+                    geocodeQuery: `${station.name_en}, South Korea`,
+                  }
                 : university
                   ? {
                       param: "university",
                       slug: university.slug,
                       label: universityLabel,
+                      geocodeQuery: [university.name_en, university.city_en, "South Korea"]
+                        .filter(Boolean)
+                        .join(", "),
                     }
                   : null
           }

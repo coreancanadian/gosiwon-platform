@@ -10,7 +10,8 @@
     "import": "tsx scripts/import-excel.ts",
     "typecheck": "tsc --noEmit",
     "enrich": "tsx scripts/enrich-addresses.ts",
-    "enrich:preview": "tsx scripts/enrich-preview.ts"
+    "enrich:preview": "tsx scripts/enrich-preview.ts",
+    "enrich:en": "tsx scripts/enrich-english-addresses.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

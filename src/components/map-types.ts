@@ -31,5 +31,11 @@ export interface MapProviderProps {
   center?: { lat: number; lng: number };
   /** Fit the view to the markers. Off once the user takes control by panning. */
   autoFit?: boolean;
+  /**
+   * An English place name to outline on the map (e.g. "Hanyang University,
+   * South Korea"), so a visitor can see roughly where the place they searched
+   * actually is. Google-only — Kakao providers ignore it (see MapView).
+   */
+  highlightQuery?: string | null;
   className?: string;
 }

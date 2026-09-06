@@ -45,6 +45,18 @@ interface GOverlayView {
     fromLatLngToDivPixel(ll: GLatLng): { x: number; y: number };
   };
 }
+interface GRectangle {
+  setMap(map: GMapInstance | null): void;
+}
+interface GGeocoderResult {
+  geometry: { viewport?: GLatLngBounds; bounds?: GLatLngBounds };
+}
+interface GGeocoder {
+  geocode(
+    request: { address: string },
+    callback: (results: GGeocoderResult[] | null, status: string) => void,
+  ): void;
+}
 interface GoogleNamespace {
   maps: {
     Map: new (
@@ -60,6 +72,16 @@ interface GoogleNamespace {
     LatLng: new (lat: number, lng: number) => GLatLng;
     LatLngBounds: new () => GLatLngBounds;
     OverlayView: { new (): GOverlayView };
+    Rectangle: new (opts: {
+      bounds: GLatLngBounds;
+      map: GMapInstance;
+      strokeColor: string;
+      strokeOpacity: number;
+      strokeWeight: number;
+      fillOpacity: number;
+      clickable: boolean;
+    }) => GRectangle;
+    Geocoder: new () => GGeocoder;
     event: {
       addListener(
         target: object,
@@ -150,6 +172,7 @@ export function GoogleMap({
   onBoundsChange,
   center,
   autoFit = true,
+  highlightQuery = null,
   className = "",
 }: MapProviderProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -159,6 +182,7 @@ export function GoogleMap({
     new Map(),
   );
   const listenersRef = useRef<GMapsEventListener[]>([]);
+  const highlightRef = useRef<GRectangle | null>(null);
 
   const boundsCbRef = useRef(onBoundsChange);
   useEffect(() => {
@@ -290,6 +314,45 @@ export function GoogleMap({
       el.className = fresh.className;
     });
   }, [activeId, selectedId, markers, status]);
+
+  /**
+   * Outlines the searched place (a university, station, or district) so a
+   * visitor can see roughly where it is, not just where the pins landed.
+   *
+   * Google has no polygon data for an arbitrary campus's real footprint via
+   * the JS API, so this asks the Geocoding API for the place's viewport — the
+   * rough bounding box Google itself uses to frame that result — and draws
+   * that as a rectangle. Approximate, but far better than nothing.
+   */
+  useEffect(() => {
+    const google = googleRef.current;
+    const map = mapRef.current;
+
+    highlightRef.current?.setMap(null);
+    highlightRef.current = null;
+
+    if (status !== "ready" || !google || !map || !highlightQuery) return;
+
+    let cancelled = false;
+    new google.maps.Geocoder().geocode({ address: highlightQuery }, (results, geoStatus) => {
+      if (cancelled || geoStatus !== "OK" || !results?.[0]) return;
+      const box = results[0].geometry.viewport ?? results[0].geometry.bounds;
+      if (!box) return;
+      highlightRef.current = new google.maps.Rectangle({
+        bounds: box,
+        map,
+        strokeColor: "#2563eb",
+        strokeOpacity: 0.8,
+        strokeWeight: 2,
+        fillOpacity: 0.05,
+        clickable: false,
+      });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [highlightQuery, status]);
 
   if (status === "no-key" || status === "error") {
     return (

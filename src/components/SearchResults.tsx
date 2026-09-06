@@ -47,6 +47,9 @@ export interface PlaceContext {
   param: "region" | "station" | "university";
   slug: string;
   label: string;
+  /** English name (+ locality) to outline on the Google map, e.g.
+   *  "Hanyang University, Seoul, South Korea". Kakao ignores it. */
+  geocodeQuery?: string;
 }
 
 export function SearchResults({
@@ -392,6 +395,7 @@ export function SearchResults({
             onBoundsChange={onBoundsChange}
             center={center}
             autoFit={!userMovedMap}
+            highlightQuery={place?.geocodeQuery ?? null}
             className="h-full w-full"
           />
         </div>
