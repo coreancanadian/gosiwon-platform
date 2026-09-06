@@ -10,10 +10,15 @@
  *   --limit <n>   Only process the first n listings
  *   --redo        Re-check listings that already have an English address
  *
- * Needs a listing's lat/lng (set by enrich-addresses.ts) and
- * NEXT_PUBLIC_GOOGLE_MAPS_API_KEY. Kakao has no English-language geocoding —
- * Google's does, via `language=en` — which is why this is a separate script
- * from enrich-addresses.ts rather than one more field on that pass.
+ * Needs a listing's lat/lng (set by enrich-addresses.ts) and a Google Maps
+ * API key with the Geocoding API enabled — GOOGLE_GEOCODING_SERVER_KEY if
+ * set, else NEXT_PUBLIC_GOOGLE_MAPS_API_KEY. Use the dedicated server key
+ * once the browser key is locked to an HTTP-referrer restriction: this
+ * script calls the API directly from Node, with no referrer header, so a
+ * referrer-restricted key rejects it. Kakao has no English-language
+ * geocoding — Google's does, via `language=en` — which is why this is a
+ * separate script from enrich-addresses.ts rather than one more field on
+ * that pass.
  */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { config as loadEnv } from "dotenv";
@@ -31,7 +36,8 @@ const DRY_RUN = has("dry-run");
 const REDO = has("redo");
 const LIMIT = flag("limit") ? parseInt(flag("limit")!, 10) : Infinity;
 
-const GOOGLE_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+const GOOGLE_KEY =
+  process.env.GOOGLE_GEOCODING_SERVER_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
 // Google's default rate limit is generous, but this keeps a large backfill
 // polite rather than testing it.
@@ -106,7 +112,7 @@ async function reverseGeocode(lat: number, lng: number): Promise<string | null> 
 
 async function main() {
   if (!GOOGLE_KEY) {
-    console.error("✗ NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is not set.");
+    console.error("✗ Neither GOOGLE_GEOCODING_SERVER_KEY nor NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is set.");
     process.exit(1);
   }
 
