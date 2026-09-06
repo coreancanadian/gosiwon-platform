@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import { routing } from "@/i18n/routing";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
+import { EmailVerifiedBanner } from "@/components/EmailVerifiedBanner";
 import "../globals.css";
 
 export function generateStaticParams() {
@@ -42,6 +44,9 @@ export default async function LocaleLayout({
     <html lang={locale}>
       <body className="flex min-h-screen flex-col">
         <NextIntlClientProvider>
+          <Suspense fallback={null}>
+            <EmailVerifiedBanner />
+          </Suspense>
           <Header />
           <main className="flex-1">{children}</main>
           <Footer />

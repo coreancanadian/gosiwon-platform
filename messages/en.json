@@ -216,7 +216,9 @@
     "haveAccount": "Already have an account?",
     "checkEmail": "Check your email",
     "checkEmailHint": "We sent a confirmation link to {email}.",
-    "invalidCredentials": "That email or password isn't right."
+    "invalidCredentials": "That email or password isn't right.",
+    "emailVerifiedTitle": "Email verified!",
+    "emailVerifiedBody": "You're all set — start browsing rooms or list your own property."
   },
   "Common": {
     "loading": "Loading...",

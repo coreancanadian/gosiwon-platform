@@ -23,5 +23,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}/login?error=exchange_failed`);
   }
 
-  return NextResponse.redirect(`${origin}${next}`);
+  const dest = new URL(next, origin);
+  dest.searchParams.set("verified", "1");
+  return NextResponse.redirect(dest);
 }
