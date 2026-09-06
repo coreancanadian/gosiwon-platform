@@ -1,4 +1,4 @@
-# 고시원 스페이스 / Gosiwon Space
+# 캠퍼스플랫 / Campusflat
 
 A bilingual (KR/EN) listing platform for Korean 고시원 and 셰어하우스. Renters
 search by district or subway station, browse listings on an Airbnb-style

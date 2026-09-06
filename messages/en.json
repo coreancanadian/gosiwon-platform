@@ -1,6 +1,6 @@
 {
   "Nav": {
-    "brand": "Gosiwon Space",
+    "brand": "Campusflat",
     "search": "Search",
     "faq": "FAQ",
     "terms": "Terms",
@@ -333,7 +333,7 @@
     "listYourProperty": "List your property",
     "support": "Support",
     "legal": "Legal",
-    "copyright": "© {year} Gosiwon Space. All rights reserved."
+    "copyright": "© {year} Campusflat. All rights reserved."
   },
   "Legal": {
     "lastUpdated": "Last updated: {date}",
@@ -342,7 +342,7 @@
     "termsSections": [
       {
         "heading": "1. What this service is",
-        "body": "Gosiwon Space (\"the Service\") lists gosiwon, oneroomtel, and share-house listings across South Korea and connects prospective tenants with the hosts who operate them. The Service does not provide real-time booking, payment processing, or contract execution, and is not a party to any lease. All agreements, move-in terms, and payments are arranged directly between the tenant and the host."
+        "body": "Campusflat (\"the Service\") lists gosiwon, oneroomtel, and share-house listings across South Korea and connects prospective tenants with the hosts who operate them. The Service does not provide real-time booking, payment processing, or contract execution, and is not a party to any lease. All agreements, move-in terms, and payments are arranged directly between the tenant and the host."
       },
       {
         "heading": "2. Where listing information comes from",
