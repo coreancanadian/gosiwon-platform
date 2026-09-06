@@ -27,18 +27,15 @@ const TOP_N = flag("top") ? parseInt(flag("top")!, 10) : 100;
 const KAKAO_KEY = process.env.KAKAO_REST_API_KEY;
 
 /**
- * Shown on the home page's university grid.
+ * The ten shown on the home page — two full rows of the five-column grid, the
+ * same shape as the district and subway sections.
  *
- * The first ten are Seoul, chosen for name recognition among international
- * students, weighted by actual nearby inventory: 홍대 is one of the areas
+ * Chosen for name recognition among international students, weighted by actual
+ * nearby inventory. 홍익대 and 숭실대 round it out: 홍대 is one of the areas
  * foreigners already know by name, and 숭실대 is third overall by listing count.
- *
- * The rest give the grid geographic spread beyond Seoul — one per city, the
- * highest-listing-count real university in each (education-college-only
- * institutions excluded, same as Seoul's own 서울교육대학교 sitting out despite
- * outranking several featured schools by count). Busan's top two tie at the
- * same count; Pukyong breaks the tie for being a national university, matching
- * the others here. Everything else stays searchable but untiled.
+ * Everything else stays searchable but untiled — including, deliberately, the
+ * non-Seoul universities briefly featured here: kept in the table and fully
+ * searchable, just not tiled on the home page.
  */
 const FEATURED = [
   "서울대학교",
@@ -51,12 +48,6 @@ const FEATURED = [
   "이화여자대학교",
   "홍익대학교",
   "숭실대학교",
-  "인하대학교", // Incheon
-  "전남대학교", // Gwangju
-  "계명대학교", // Daegu
-  "부경대학교", // Busan
-  "충남대학교", // Daejeon
-  "전북대학교", // Jeonju / Jeonbuk
 ];
 
 
