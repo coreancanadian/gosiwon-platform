@@ -395,7 +395,10 @@ export function SearchResults({
             onBoundsChange={onBoundsChange}
             center={center}
             autoFit={!userMovedMap}
-            highlightQuery={place?.geocodeQuery ?? null}
+            // Kakao only understands Korean queries; Google's key wants the
+            // English one it was built from — so pick by the site's own
+            // locale, not by which map provider happens to be mounted.
+            highlightQuery={(locale === "en" ? place?.geocodeQuery : place?.label) ?? null}
             className="h-full w-full"
           />
         </div>

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MapPinned } from "lucide-react";
-import { buildPinElement } from "./map-pin";
+import { buildPinElement, buildHighlightPinElement } from "./map-pin";
 import { useIdleSuppression } from "@/lib/use-idle-suppression";
 import type { MapProviderProps } from "./map-types";
 
@@ -30,6 +30,20 @@ interface KakaoMapInstance {
   getBounds(): KakaoBounds;
   relayout(): void;
 }
+interface KakaoOverlay {
+  setMap(map: object | null): void;
+  setZIndex(z: number): void;
+}
+interface KakaoPlacesResult {
+  x: string; // lng
+  y: string; // lat
+}
+interface KakaoPlaces {
+  keywordSearch(
+    query: string,
+    callback: (data: KakaoPlacesResult[], status: string) => void,
+  ): void;
+}
 interface KakaoNamespace {
   maps: {
     load(cb: () => void): void;
@@ -44,9 +58,13 @@ interface KakaoNamespace {
       content: HTMLElement;
       yAnchor?: number;
       zIndex?: number;
-    }) => { setMap(map: object | null): void; setZIndex(z: number): void };
+    }) => KakaoOverlay;
     event: {
       addListener(target: object, type: string, handler: () => void): void;
+    };
+    services: {
+      Places: new () => KakaoPlaces;
+      Status: { OK: string };
     };
   };
 }
@@ -69,7 +87,9 @@ function loadKakaoSdk(appKey: string): Promise<KakaoNamespace> {
     const script = document.createElement("script");
     script.id = SDK_ID;
     script.async = true;
-    script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${appKey}&autoload=false`;
+    // libraries=services is needed for Places keyword search, used only for
+    // the "you are here" highlight pin — the base SDK doesn't include it.
+    script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${appKey}&libraries=services&autoload=false`;
     script.addEventListener("load", onReady);
     script.addEventListener("error", () => reject(new Error("sdk-error")));
     document.head.appendChild(script);
@@ -84,13 +104,15 @@ export function KakaoMap({
   onBoundsChange,
   center,
   autoFit = true,
+  highlightQuery = null,
   className = "",
 }: MapProviderProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<KakaoMapInstance | null>(null);
-  const overlaysRef = useRef<
-    Map<string, { overlay: { setMap(m: object | null): void; setZIndex(z: number): void }; el: HTMLElement }>
-  >(new Map());
+  const overlaysRef = useRef<Map<string, { overlay: KakaoOverlay; el: HTMLElement }>>(
+    new Map(),
+  );
+  const highlightRef = useRef<KakaoOverlay | null>(null);
   // Holds the latest callback so the map's "idle" listener never has to be
   // torn down and re-registered when the parent re-renders.
   const boundsCbRef = useRef(onBoundsChange);
@@ -229,6 +251,39 @@ export function KakaoMap({
       overlay.setZIndex(isSelected ? 20 : isActive ? 10 : 1);
     });
   }, [activeId, selectedId, markers, status]);
+
+  /**
+   * Drops a big, bright "you are here" pin on the searched place (a
+   * university, station, or district) — same feature as GoogleMap's, via
+   * Kakao's Places keyword search instead of Google's Geocoder.
+   */
+  useEffect(() => {
+    const kakao = window.kakao;
+    const map = mapRef.current;
+
+    highlightRef.current?.setMap(null);
+    highlightRef.current = null;
+
+    if (status !== "ready" || !kakao || !map || !highlightQuery) return;
+
+    let cancelled = false;
+    new kakao.maps.services.Places().keywordSearch(highlightQuery, (data, searchStatus) => {
+      if (cancelled || searchStatus !== kakao.maps.services.Status.OK || !data[0]) return;
+      const position = new kakao.maps.LatLng(parseFloat(data[0].y), parseFloat(data[0].x));
+      const overlay = new kakao.maps.CustomOverlay({
+        position,
+        content: buildHighlightPinElement(),
+        yAnchor: 1,
+        zIndex: 30,
+      });
+      overlay.setMap(map);
+      highlightRef.current = overlay;
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [highlightQuery, status]);
 
   if (status === "no-key" || status === "error") {
     return (
