@@ -7,7 +7,11 @@ import { Globe } from "lucide-react";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { routing, type Locale } from "@/i18n/routing";
 
-const LABELS: Record<Locale, string> = { ko: "한국어", en: "English" };
+// Short codes, not full names ("한국어"/"English") — on a narrow header those
+// were the single biggest space hog, forcing Log in/Sign up to wrap onto two
+// lines. Full names are still available to screen readers via aria-label.
+const LABELS: Record<Locale, string> = { ko: "KO", en: "EN" };
+const FULL_NAMES: Record<Locale, string> = { ko: "한국어", en: "English" };
 
 export function LocaleSwitcher() {
   const locale = useLocale() as Locale;
@@ -31,15 +35,15 @@ export function LocaleSwitcher() {
   return (
     <label className="relative inline-flex items-center">
       <Globe
-        className="pointer-events-none absolute left-2.5 h-4 w-4 text-ink-500"
+        className="pointer-events-none absolute left-2 h-3.5 w-3.5 text-ink-500"
         aria-hidden
       />
       <select
         value={locale}
         onChange={(e) => onChange(e.target.value)}
         disabled={isPending}
-        aria-label={LABELS[locale]}
-        className="appearance-none rounded-full border border-ink-200 bg-white py-1.5 pr-3 pl-8 text-sm text-ink-700 transition hover:border-ink-300 focus:ring-2 focus:ring-brand-500 focus:outline-none disabled:opacity-60"
+        aria-label={FULL_NAMES[locale]}
+        className="appearance-none rounded-full border border-ink-200 bg-white py-1.5 pr-2 pl-6 text-sm whitespace-nowrap text-ink-700 transition hover:border-ink-300 focus:ring-2 focus:ring-brand-500 focus:outline-none disabled:opacity-60"
       >
         {routing.locales.map((l) => (
           <option key={l} value={l}>

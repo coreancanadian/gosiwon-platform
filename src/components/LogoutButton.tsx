@@ -21,7 +21,7 @@ export function LogoutButton({ label }: { label: string }) {
       type="button"
       onClick={onLogout}
       disabled={isPending}
-      className="rounded-full px-3 py-2 text-sm text-ink-600 transition hover:bg-ink-100 disabled:opacity-60"
+      className="rounded-full px-2 py-2 text-sm whitespace-nowrap text-ink-600 transition hover:bg-ink-100 disabled:opacity-60 sm:px-3"
     >
       {label}
     </button>

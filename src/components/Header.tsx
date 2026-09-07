@@ -27,7 +27,7 @@ export async function Header() {
           <span>{t("brand")}</span>
         </Link>
 
-        <nav className="ml-auto flex items-center gap-1 sm:gap-2">
+        <nav className="ml-auto flex items-center gap-0.5 whitespace-nowrap sm:gap-2">
           <Link
             href="/search"
             className="hidden rounded-full px-3 py-2 text-sm text-ink-600 transition hover:bg-ink-100 sm:block"
@@ -40,7 +40,7 @@ export async function Header() {
               {role === "owner" || role === "admin" ? (
                 <Link
                   href="/dashboard"
-                  className="flex items-center gap-1.5 rounded-full px-3 py-2 text-sm text-ink-600 transition hover:bg-ink-100"
+                  className="flex items-center gap-1.5 rounded-full px-2 py-2 text-sm text-ink-600 transition hover:bg-ink-100 sm:px-3"
                 >
                   <LayoutDashboard className="h-4 w-4" aria-hidden />
                   <span className="hidden sm:inline">{t("dashboard")}</span>
@@ -49,7 +49,7 @@ export async function Header() {
                 <>
                   <Link
                     href="/inquiries"
-                    className="flex items-center gap-1.5 rounded-full px-3 py-2 text-sm text-ink-600 transition hover:bg-ink-100"
+                    className="flex items-center gap-1.5 rounded-full px-2 py-2 text-sm text-ink-600 transition hover:bg-ink-100 sm:px-3"
                   >
                     <MessageSquare className="h-4 w-4" aria-hidden />
                     <span className="hidden sm:inline">{t("myInquiries")}</span>
@@ -57,7 +57,7 @@ export async function Header() {
                   {/* A tenant can always read the record hosts see. */}
                   <Link
                     href="/my-record"
-                    className="flex items-center gap-1.5 rounded-full px-3 py-2 text-sm text-ink-600 transition hover:bg-ink-100"
+                    className="flex items-center gap-1.5 rounded-full px-2 py-2 text-sm text-ink-600 transition hover:bg-ink-100 sm:px-3"
                   >
                     <ShieldCheck className="h-4 w-4" aria-hidden />
                     <span className="hidden sm:inline">{tRep("myRecord")}</span>
@@ -70,13 +70,13 @@ export async function Header() {
             <>
               <Link
                 href="/login"
-                className="rounded-full px-3 py-2 text-sm text-ink-600 transition hover:bg-ink-100"
+                className="rounded-full px-2 py-2 text-sm text-ink-600 transition hover:bg-ink-100 sm:px-3"
               >
                 {t("login")}
               </Link>
               <Link
                 href="/signup"
-                className="rounded-full bg-brand-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-600"
+                className="rounded-full bg-brand-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-brand-600 sm:px-4"
               >
                 {t("signup")}
               </Link>
