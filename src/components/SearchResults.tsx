@@ -388,6 +388,18 @@ export function SearchResults({
           }`}
         >
           <MapView
+            // Force a full remount when the mobile tab switches to "map".
+            // The map sat invisible (display:none) under "list", where a map
+            // SDK measures its container as zero-size; a stale instance can
+            // then misjudge its own viewport once revealed and — worse —
+            // its idle-suppression window is keyed to when IT last moved,
+            // not to this reveal, so a resize-triggered relayout can slip
+            // through as a "user panned here" and silently refetch the wrong
+            // bounds. A fresh instance is constructed only once genuinely
+            // visible, sized correctly from the start, with its own clean
+            // suppression window. No-op on desktop, where mobileView never
+            // changes (its toggle buttons are mobile-only).
+            key={mobileView}
             markers={markers}
             activeId={activeId}
             selectedId={selectedId}
