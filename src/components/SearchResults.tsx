@@ -65,6 +65,7 @@ export function SearchResults({
 }) {
   const t = useTranslations("Search");
   const tEnum = useTranslations("Enums");
+  const tCommon = useTranslations("Common");
   const locale = useLocale() as Locale;
 
   const [properties, setProperties] = useState(initialProperties);
@@ -210,10 +211,15 @@ export function SearchResults({
     [properties, locale],
   );
 
-  /** Clicking a pin selects the listing; the effect below scrolls to it. */
+  /**
+   * Clicking a pin selects the listing. On desktop the effect below scrolls
+   * the sidebar list to it; on mobile it instead surfaces as the peek card
+   * below, without leaving map view — jumping the whole screen over to the
+   * list just to show one card was the wrong amount of motion for what the
+   * user asked to see.
+   */
   const onMarkerClick = useCallback((id: string) => {
     setSelectedId(id);
-    setMobileView("list");
     pendingScrollRef.current = id;
   }, []);
 
@@ -270,6 +276,7 @@ export function SearchResults({
   }, [selectedId]);
 
   const activeId = hoveredId ?? selectedId;
+  const selectedProperty = properties.find((p) => p.id === selectedId) ?? null;
 
   return (
     <>
@@ -420,6 +427,30 @@ export function SearchResults({
           />
         </div>
       </div>
+
+      {/* Mobile pin-tap preview: peeks up over the bottom of the map with
+          just the tapped listing — the same card as the list, at the same
+          size — so a tap doesn't yank the whole screen away from the map
+          into the full list. Map and List/Show map toggle stay put. */}
+      {mobileView === "map" && selectedProperty ? (
+        <div className="fixed inset-x-0 bottom-0 z-30 px-3 pb-3 lg:hidden">
+          <div className="relative rounded-[var(--radius-card)] bg-white shadow-lg">
+            <button
+              type="button"
+              onClick={() => setSelectedId(null)}
+              aria-label={tCommon("close")}
+              className="absolute -top-3 right-1 z-10 flex h-7 w-7 items-center justify-center rounded-full border border-ink-200 bg-white text-ink-600 shadow-md"
+            >
+              <X className="h-4 w-4" aria-hidden />
+            </button>
+            <PropertyCard
+              property={selectedProperty}
+              isSelected
+              imageUrl={coverUrl(selectedProperty)}
+            />
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }
