@@ -95,7 +95,7 @@ export function PropertyCard({
 
         <p className="mt-0.5 flex items-start gap-1 text-xs text-ink-500">
           <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-          <span className="line-clamp-2">{address}</span>
+          <span className="line-clamp-2 min-w-0">{address}</span>
         </p>
 
         <div className="mt-auto flex flex-wrap items-baseline gap-x-2 pt-2">

@@ -343,7 +343,12 @@ export function SearchResults({
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,44%)]">
+      {/* grid-cols-1 (not just the bare default single-column) matters here:
+          Tailwind's grid-cols-N always sizes tracks as minmax(0,1fr), while an
+          unconstrained implicit grid track sizes to `auto` — letting a long
+          untruncated child (e.g. a wide title) silently stretch the whole row,
+          and every card in it, past the visible edge on mobile. */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,44%)]">
         {/* Its own scroll container, so selecting a pin scrolls the list
             rather than the whole page. */}
         <div
