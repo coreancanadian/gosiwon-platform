@@ -1,17 +1,17 @@
 @import "tailwindcss";
 
 @theme {
-  /* Warm coral accent — hospitality without being a Airbnb clone. */
-  --color-brand-50: #fff1ef;
-  --color-brand-100: #ffe0dc;
-  --color-brand-200: #ffc5bd;
-  --color-brand-300: #ff9e91;
-  --color-brand-400: #fa7663;
-  --color-brand-500: #e45b4e;
-  --color-brand-600: #cc4235;
-  --color-brand-700: #a9332a;
-  --color-brand-800: #8b2d26;
-  --color-brand-900: #742b25;
+  /* Brand blue, anchored on the logo's exact color (#004aad = brand-500). */
+  --color-brand-50: #ebf3ff;
+  --color-brand-100: #d1e5ff;
+  --color-brand-200: #a3cbff;
+  --color-brand-300: #5ca3ff;
+  --color-brand-400: #006eff;
+  --color-brand-500: #004aad;
+  --color-brand-600: #003c8a;
+  --color-brand-700: #003170;
+  --color-brand-800: #00285c;
+  --color-brand-900: #001f47;
 
   /* Warm neutrals rather than pure grays — softer against the coral. */
   --color-ink-50: #faf9f8;

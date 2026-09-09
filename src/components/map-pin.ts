@@ -74,9 +74,10 @@ export function genderSwatch(gender: GenderPolicy): string {
   return personSvg(gender, 14);
 }
 
-// Distinct from both gender colours (blue/pink) and from every property pin,
-// so a searched place reads unmistakably as "you are here", not as a listing.
-const HIGHLIGHT_COLOUR = "#f97316"; // orange-500
+// Brand blue — the site's own accent color, not the gender palette's blue
+// (which sits noticeably lighter/brighter), so a searched place still reads
+// as its own thing rather than as a listing pin.
+const HIGHLIGHT_COLOUR = "#004aad";
 
 // Classic teardrop "place" marker shape — bigger and shaped differently from
 // the round property pins so it can never be mistaken for a listing.
