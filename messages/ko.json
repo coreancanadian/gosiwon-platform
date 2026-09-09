@@ -218,7 +218,8 @@
     "checkEmailHint": "{email} 주소로 인증 링크를 보냈습니다.",
     "invalidCredentials": "이메일 또는 비밀번호가 올바르지 않습니다.",
     "emailVerifiedTitle": "이메일 인증 완료!",
-    "emailVerifiedBody": "이제 방을 찾아보거나 매물을 등록할 수 있어요."
+    "emailVerifiedBody": "이제 방을 찾아보거나 매물을 등록할 수 있어요.",
+    "emailAlreadyRegistered": "이미 가입된 이메일입니다. 로그인해 주세요."
   },
   "Common": {
     "loading": "불러오는 중...",

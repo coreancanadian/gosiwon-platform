@@ -218,7 +218,8 @@
     "checkEmailHint": "We sent a confirmation link to {email}.",
     "invalidCredentials": "That email or password isn't right.",
     "emailVerifiedTitle": "Email verified!",
-    "emailVerifiedBody": "You're all set — start browsing rooms or list your own property."
+    "emailVerifiedBody": "You're all set — start browsing rooms or list your own property.",
+    "emailAlreadyRegistered": "That email is already registered. Try logging in instead."
   },
   "Common": {
     "loading": "Loading...",

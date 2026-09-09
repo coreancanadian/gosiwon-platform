@@ -64,6 +64,18 @@ export function AuthForm({
       return;
     }
 
+    // Supabase deliberately returns a success-shaped response for an email
+    // that's already registered and confirmed — no error, no session, and no
+    // email actually sent — so a real signup can't be used to probe which
+    // addresses exist. An empty identities array is the documented way to
+    // tell the two apart on the client: a genuine new signup (or a resend
+    // for an unconfirmed address) always has at least one.
+    if (data.user && data.user.identities?.length === 0) {
+      setError(t("emailAlreadyRegistered"));
+      setPending(false);
+      return;
+    }
+
     // Supabase returns a session immediately when email confirmation is off.
     if (data.session) {
       router.replace(role === "owner" ? "/dashboard" : redirectTo);
