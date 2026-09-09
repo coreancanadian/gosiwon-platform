@@ -24,10 +24,10 @@ export async function Header() {
           <Image
             src="/logo.png"
             alt={t("brand")}
-            width={750}
-            height={612}
+            width={1000}
+            height={151}
             priority
-            className="h-12 w-auto"
+            className="h-7 w-auto"
           />
         </Link>
 

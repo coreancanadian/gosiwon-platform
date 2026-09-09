@@ -15,9 +15,9 @@ export async function Footer() {
           <Image
             src="/logo.png"
             alt={tNav("brand")}
-            width={750}
-            height={612}
-            className="h-10 w-auto"
+            width={1000}
+            height={151}
+            className="h-6 w-auto"
           />
           <p className="mt-2 max-w-sm text-sm text-ink-500">{t("tagline")}</p>
         </div>
