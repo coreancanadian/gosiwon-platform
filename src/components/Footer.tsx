@@ -1,4 +1,5 @@
 import { getTranslations } from "next-intl/server";
+import Image from "next/image";
 import { Link } from "@/i18n/navigation";
 
 export async function Footer() {
@@ -11,7 +12,13 @@ export async function Footer() {
     <footer className="mt-20 border-t border-ink-200 bg-ink-50">
       <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:px-6 md:grid-cols-4">
         <div className="md:col-span-2">
-          <p className="text-base font-semibold text-ink-900">{tNav("brand")}</p>
+          <Image
+            src="/logo.png"
+            alt={tNav("brand")}
+            width={750}
+            height={612}
+            className="h-10 w-auto"
+          />
           <p className="mt-2 max-w-sm text-sm text-ink-500">{t("tagline")}</p>
         </div>
 
