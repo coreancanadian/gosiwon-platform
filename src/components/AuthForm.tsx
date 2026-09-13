@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 import { Link, useRouter } from "@/i18n/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { trackSignUp } from "@/lib/analytics";
 
 type Mode = "login" | "signup";
 
@@ -75,6 +76,10 @@ export function AuthForm({
       setPending(false);
       return;
     }
+
+    // A genuine new account — the row exists in auth.users from here on,
+    // regardless of whether email confirmation is still pending.
+    trackSignUp(role);
 
     // Supabase returns a session immediately when email confirmation is off.
     if (data.session) {

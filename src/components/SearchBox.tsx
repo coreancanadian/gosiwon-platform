@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Search, MapPin, TrainFront, GraduationCap } from "lucide-react";
 import { useRouter } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
+import { trackSearch } from "@/lib/analytics";
 
 export interface SearchOption {
   kind: "region" | "station" | "university";
@@ -57,7 +58,12 @@ export function SearchBox({
       return;
     }
     const trimmed = query.trim();
-    if (trimmed) router.push(`/search?q=${encodeURIComponent(trimmed)}`);
+    if (trimmed) {
+      // Only the free-text path — picking a suggested region/station/
+      // university above is a selection, not a keyword someone typed.
+      trackSearch(trimmed);
+      router.push(`/search?q=${encodeURIComponent(trimmed)}`);
+    }
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {

@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { Check, Loader2, Phone, Send, X } from "lucide-react";
 import { respondToInquiry, sendMessage } from "@/lib/actions/inquiries";
+import { trackMessageSent } from "@/lib/analytics";
 import type { InquiryThread } from "@/lib/data/inquiries";
 
 export function MessageThread({ thread }: { thread: InquiryThread }) {
@@ -28,6 +29,8 @@ export function MessageThread({ thread }: { thread: InquiryThread }) {
         setError(result.error ?? "Failed to send.");
         return;
       }
+      // A reply within an existing thread — not a new inquiry.
+      trackMessageSent(false);
       setBody("");
       router.refresh();
     });

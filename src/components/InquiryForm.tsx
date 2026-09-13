@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Loader2, Send } from "lucide-react";
 import { useRouter } from "@/i18n/navigation";
 import { createInquiry } from "@/lib/actions/inquiries";
+import { trackMessageSent } from "@/lib/analytics";
 import type { Room } from "@/lib/types/database";
 
 export function InquiryForm({
@@ -45,6 +46,9 @@ export function InquiryForm({
         setError(result.error ?? "Something went wrong.");
         return;
       }
+      // The opening message of a brand-new inquiry — the "unique" side of
+      // message volume.
+      trackMessageSent(true);
       router.push(`/inquiries/${result.inquiryId}`);
     });
   }
