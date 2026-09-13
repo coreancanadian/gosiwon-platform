@@ -219,7 +219,18 @@
     "invalidCredentials": "That email or password isn't right.",
     "emailVerifiedTitle": "Email verified!",
     "emailVerifiedBody": "You're all set — start browsing rooms or list your own property.",
-    "emailAlreadyRegistered": "That email is already registered. Try logging in instead."
+    "emailAlreadyRegistered": "That email is already registered. Try logging in instead.",
+    "forgotPasswordLink": "Forgot password?",
+    "forgotPasswordTitle": "Reset your password",
+    "forgotPasswordHint": "Enter your email and we'll send you a link to reset your password.",
+    "sendResetLink": "Send reset link",
+    "backToLogin": "Back to login",
+    "resetPasswordTitle": "Set a new password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm password",
+    "resetPasswordButton": "Update password",
+    "passwordMismatch": "Passwords don't match.",
+    "invalidResetLink": "This reset link is invalid or has expired. Request a new one from the login page."
   },
   "Common": {
     "loading": "Loading...",

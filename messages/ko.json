@@ -219,7 +219,18 @@
     "invalidCredentials": "이메일 또는 비밀번호가 올바르지 않습니다.",
     "emailVerifiedTitle": "이메일 인증 완료!",
     "emailVerifiedBody": "이제 방을 찾아보거나 매물을 등록할 수 있어요.",
-    "emailAlreadyRegistered": "이미 가입된 이메일입니다. 로그인해 주세요."
+    "emailAlreadyRegistered": "이미 가입된 이메일입니다. 로그인해 주세요.",
+    "forgotPasswordLink": "비밀번호를 잊으셨나요?",
+    "forgotPasswordTitle": "비밀번호 재설정",
+    "forgotPasswordHint": "가입한 이메일을 입력하시면 비밀번호 재설정 링크를 보내드립니다.",
+    "sendResetLink": "재설정 링크 보내기",
+    "backToLogin": "로그인으로 돌아가기",
+    "resetPasswordTitle": "새 비밀번호 설정",
+    "newPassword": "새 비밀번호",
+    "confirmPassword": "비밀번호 확인",
+    "resetPasswordButton": "비밀번호 변경",
+    "passwordMismatch": "비밀번호가 일치하지 않습니다.",
+    "invalidResetLink": "재설정 링크가 유효하지 않거나 만료되었습니다. 로그인 페이지에서 다시 요청해 주세요."
   },
   "Common": {
     "loading": "불러오는 중...",

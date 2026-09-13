@@ -2,8 +2,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
 /**
- * Email-confirmation landing. Supabase redirects here with a one-time `code`
- * which we exchange for a session cookie.
+ * Shared landing for every Supabase email link (signup confirmation and
+ * password recovery alike) — both hand back a one-time `code` which we
+ * exchange for a real session cookie before sending the browser onward.
  *
  * Lives under /api so the i18n proxy's matcher skips it.
  */
@@ -24,6 +25,10 @@ export async function GET(request: NextRequest) {
   }
 
   const dest = new URL(next, origin);
-  dest.searchParams.set("verified", "1");
+  // The "email verified, start browsing" banner is signup-specific copy —
+  // wrong message for someone who just clicked a password-reset link.
+  if (!next.startsWith("/reset-password")) {
+    dest.searchParams.set("verified", "1");
+  }
   return NextResponse.redirect(dest);
 }

@@ -178,6 +178,14 @@ export function AuthForm({
           onChange={(e) => setPassword(e.target.value)}
           className={inputClass}
         />
+        {mode === "login" ? (
+          <Link
+            href="/forgot-password"
+            className="mt-1.5 inline-block text-sm text-brand-600 hover:underline"
+          >
+            {t("forgotPasswordLink")}
+          </Link>
+        ) : null}
       </div>
 
       {error ? (
