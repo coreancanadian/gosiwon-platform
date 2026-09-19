@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
@@ -16,7 +17,9 @@ export async function getCurrentUser(): Promise<User | null> {
   return user;
 }
 
-export async function getCurrentProfile(): Promise<Profile | null> {
+// cache() so the header and anything else that asks during the same request
+// share one lookup instead of each hitting Supabase.
+export const getCurrentProfile = cache(async (): Promise<Profile | null> => {
   if (!isSupabaseConfigured()) return null;
 
   const supabase = await createClient();
@@ -32,4 +35,4 @@ export async function getCurrentProfile(): Promise<Profile | null> {
     .single();
 
   return data ?? null;
-}
+});
