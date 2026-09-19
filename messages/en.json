@@ -399,36 +399,40 @@
         "body": "We store the messages, preferred move-in date, and expected stay length you enter when sending an inquiry. If you use the stay record (reputation) feature, a host and tenant may rate each other after a completed stay. That record is shared with a prospective host only when the tenant consents to share it on that specific application, and a user can always view their own record."
       },
       {
-        "heading": "3. How we use this information",
+        "heading": "3. Contact requests and business documents",
+        "body": "Messages and attachments you send to the Campusflat team through the contact feature are stored. If a host submits a copy of their business registration certificate (for example for the host signup bonus), the details on that document — such as the business registration number, business name, representative's name, and business address — are collected with it. We use this only to verify the business and run the promotion. It is kept in private storage that only you and the Campusflat team can open, and it is never shown to other users."
+      },
+      {
+        "heading": "4. How we use this information",
         "body": "Collected information is used only to power listing search, deliver inquiries and messages, manage accounts, and improve the Service. A host's and tenant's contact details are shared with each other only once an inquiry is accepted, and are not disclosed to any other party."
       },
       {
-        "heading": "4. Third-party processing",
-        "body": "The Service uses Supabase (servers located in Seoul, South Korea) for its database and authentication, and Kakao Maps and Google Maps to display maps. Using the map may send your search terms and IP address to those providers. We do not sell personal information or share it with third parties for marketing purposes."
+        "heading": "5. Third-party processing",
+        "body": "The Service uses Supabase (servers located in Seoul, South Korea) for its database and authentication, and Kakao Maps and Google Maps to display maps. Using the map may send your search terms and IP address to those providers. We do not sell personal information or share it with third parties for marketing purposes. We also use Google Analytics to understand how the Service is used; this can send the pages you visit, search terms, your account type (room seeker or host), whether an inquiry was sent, a cookie identifier, and device and browser details to Google. The content of your messages, your email address, and your name are not sent."
       },
       {
-        "heading": "5. Cookies",
-        "body": "The Service uses only essential cookies required to keep you signed in. It does not use advertising or tracking cookies."
+        "heading": "6. Cookies",
+        "body": "The Service uses essential cookies required to keep you signed in, and Google Analytics cookies used to measure usage. It does not use advertising cookies. You can block cookies in your browser settings, but sign-in and some other features will then not work."
       },
       {
-        "heading": "6. Retention and deletion",
-        "body": "Personal information is deleted without delay after account closure, except where retention is required by law. Stay reviews are kept for 3 years from the date they are written and then expire automatically."
+        "heading": "7. Retention and deletion",
+        "body": "Personal information is deleted without delay after account closure, except where retention is required by law. Stay reviews are kept for 3 years from the date they are written and then expire automatically. Contact messages and submitted business registration certificates are deleted without delay once their purpose is fulfilled or when you ask us to delete them, except where a legal retention period applies."
       },
       {
-        "heading": "7. Your rights",
+        "heading": "8. Your rights",
         "body": "You may request access to, correction of, deletion of, or a restriction on the processing of your personal information, consistent with South Korea's Personal Information Protection Act (PIPA). Requests can be submitted through the support channel below."
       },
       {
-        "heading": "8. Children",
+        "heading": "9. Children",
         "body": "The Service is not directed at children under 14. If we become aware such information was collected, we will delete it."
       },
       {
-        "heading": "9. Changes to this policy",
+        "heading": "10. Changes to this policy",
         "body": "We will announce any changes to this policy in advance through the Service."
       },
       {
-        "heading": "10. Contact",
-        "body": "For privacy-related questions, please reach out through the Service's support channel."
+        "heading": "11. Contact",
+        "body": "For privacy-related questions, please use the “Contact” button in the Service (after signing in)."
       }
     ],
     "faqTitle": "Frequently Asked Questions",

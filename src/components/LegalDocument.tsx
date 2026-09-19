@@ -18,16 +18,15 @@ interface Section {
 export async function LegalDocument({
   titleKey,
   sectionsKey,
+  updatedOn,
 }: {
   titleKey: "termsTitle" | "privacyTitle";
   sectionsKey: "termsSections" | "privacySections";
+  /** ISO date this document last actually changed — bump it when editing the text. */
+  updatedOn: string;
 }) {
   const t = await getTranslations("Legal");
   const sections = t.raw(sectionsKey) as Section[];
-
-  // Stable across reloads within a day, and avoids a server/client hydration
-  // mismatch that a client-rendered `new Date()` would cause.
-  const today = new Date().toISOString().slice(0, 10);
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6">
@@ -38,7 +37,7 @@ export async function LegalDocument({
       <h1 className="mt-4 text-2xl font-bold tracking-tight text-ink-900 sm:text-3xl">
         {t(titleKey)}
       </h1>
-      <p className="mt-1 text-sm text-ink-400">{t("lastUpdated", { date: today })}</p>
+      <p className="mt-1 text-sm text-ink-400">{t("lastUpdated", { date: updatedOn })}</p>
 
       <div className="mt-8 space-y-8">
         {sections.map((section) => (

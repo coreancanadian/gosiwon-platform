@@ -9,5 +9,5 @@ export default async function TermsPage({
   const { locale } = await params;
   setRequestLocale(locale);
 
-  return <LegalDocument titleKey="termsTitle" sectionsKey="termsSections" />;
+  return <LegalDocument titleKey="termsTitle" sectionsKey="termsSections" updatedOn="2026-09-06" />;
 }

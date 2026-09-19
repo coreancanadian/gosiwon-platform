@@ -9,5 +9,5 @@ export default async function PrivacyPage({
   const { locale } = await params;
   setRequestLocale(locale);
 
-  return <LegalDocument titleKey="privacyTitle" sectionsKey="privacySections" />;
+  return <LegalDocument titleKey="privacyTitle" sectionsKey="privacySections" updatedOn="2026-09-19" />;
 }
