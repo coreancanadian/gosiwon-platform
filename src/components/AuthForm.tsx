@@ -13,10 +13,13 @@ export function AuthForm({
   mode,
   defaultRole = "tenant",
   redirectTo = "/",
+  initialError,
 }: {
   mode: Mode;
   defaultRole?: "tenant" | "owner";
   redirectTo?: string;
+  /** Shown on arrival, e.g. when an emailed link couldn't be used. */
+  initialError?: string;
 }) {
   const t = useTranslations("Auth");
   const tCommon = useTranslations("Common");
@@ -27,7 +30,7 @@ export function AuthForm({
   const [fullName, setFullName] = useState("");
   const [role, setRole] = useState<"tenant" | "owner">(defaultRole);
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(initialError ?? null);
   const [sentTo, setSentTo] = useState<string | null>(null);
 
   async function onSubmit(e: React.FormEvent) {

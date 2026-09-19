@@ -3,9 +3,10 @@ import Image from "next/image";
 import { Link } from "@/i18n/navigation";
 
 export async function Footer() {
-  const [t, tNav] = await Promise.all([
+  const [t, tNav, tSupport] = await Promise.all([
     getTranslations("Footer"),
     getTranslations("Nav"),
+    getTranslations("Support"),
   ]);
 
   return (
@@ -33,6 +34,11 @@ export async function Footer() {
             <li>
               <Link href="/dashboard" className="hover:text-brand-600">
                 {tNav("dashboard")}
+              </Link>
+            </li>
+            <li>
+              <Link href="/support" className="hover:text-brand-600">
+                {tSupport("navLabel")}
               </Link>
             </li>
           </ul>

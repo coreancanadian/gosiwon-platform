@@ -1,7 +1,8 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { LayoutDashboard, Home, MessageSquare, BadgeCheck } from "lucide-react";
+import { LayoutDashboard, Home, MessageSquare, BadgeCheck, LifeBuoy } from "lucide-react";
 import { Link, redirect } from "@/i18n/navigation";
 import { getCurrentProfile } from "@/lib/auth";
+import { getSupportUnreadCount } from "@/lib/data/support";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { DemoModeNotice } from "@/components/DemoModeNotice";
 
@@ -40,9 +41,18 @@ export default async function DashboardLayout({
     return null;
   }
 
-  const tAdmin = await getTranslations("Admin");
+  const [tAdmin, tSupport, supportUnread] = await Promise.all([
+    getTranslations("Admin"),
+    getTranslations("Support"),
+    getSupportUnreadCount(profile.role),
+  ]);
 
-  const navItems = [
+  const navItems: Array<{
+    href: string;
+    label: string;
+    icon: typeof Home;
+    badge?: number;
+  }> = [
     { href: "/dashboard", label: t("overview"), icon: LayoutDashboard },
     { href: "/dashboard/properties", label: t("myProperties"), icon: Home },
     { href: "/dashboard/inquiries", label: t("inquiries"), icon: MessageSquare },
@@ -50,6 +60,10 @@ export default async function DashboardLayout({
     ...(profile.role === "admin"
       ? [{ href: "/dashboard/claims", label: tAdmin("claims"), icon: BadgeCheck }]
       : []),
+    // Admins read every conversation in the inbox; hosts write to the team.
+    profile.role === "admin"
+      ? { href: "/dashboard/support", label: tSupport("inboxTitle"), icon: LifeBuoy, badge: supportUnread }
+      : { href: "/support", label: tSupport("navLabel"), icon: LifeBuoy, badge: supportUnread },
   ];
 
   return (
@@ -59,7 +73,7 @@ export default async function DashboardLayout({
       </h1>
 
       <nav className="mt-6 flex gap-1 overflow-x-auto border-b border-ink-200 pb-px no-scrollbar">
-        {navItems.map(({ href, label, icon: Icon }) => (
+        {navItems.map(({ href, label, icon: Icon, badge }) => (
           <Link
             key={href}
             href={href}
@@ -67,6 +81,11 @@ export default async function DashboardLayout({
           >
             <Icon className="h-4 w-4" aria-hidden />
             {label}
+            {badge ? (
+              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-500 px-1.5 text-[11px] font-semibold text-white">
+                {badge}
+              </span>
+            ) : null}
           </Link>
         ))}
       </nav>

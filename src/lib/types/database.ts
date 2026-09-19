@@ -302,6 +302,25 @@ export interface PropertyWithRelations extends Property {
   regions: Region | null;
 }
 
+export type SupportThread = {
+  id: string;
+  user_id: string;
+  created_at: string;
+  last_message_at: string;
+  admin_unread: boolean;
+  user_unread: boolean;
+}
+
+export type SupportMessage = {
+  id: string;
+  thread_id: string;
+  sender_id: string;
+  body: string;
+  attachment_path: string | null;
+  attachment_name: string | null;
+  created_at: string;
+}
+
 /**
  * `Relationships` is required by postgrest-js's GenericTable constraint.
  * Omitting it makes the whole schema fail the constraint, at which point every
@@ -341,6 +360,8 @@ export interface Database {
       stays: Table<Stay>;
       universities: Table<University>;
       stay_reviews: Table<StayReview>;
+      support_threads: Table<SupportThread>;
+      support_messages: Table<SupportMessage>;
     };
     Views: Record<string, never>;
     Functions: {
@@ -362,6 +383,11 @@ export interface Database {
       };
       approve_property_claim: {
         Args: { p_claim_id: string };
+        Returns: undefined;
+      };
+      /** See supabase/migrations/0011. Clears the caller's own unread flag. */
+      mark_support_read: {
+        Args: { p_thread_id: string };
         Returns: undefined;
       };
     };

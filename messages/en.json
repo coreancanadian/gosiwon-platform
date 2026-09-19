@@ -230,7 +230,8 @@
     "confirmPassword": "Confirm password",
     "resetPasswordButton": "Update password",
     "passwordMismatch": "Passwords don't match.",
-    "invalidResetLink": "This reset link is invalid or has expired. Request a new one from the login page."
+    "invalidResetLink": "This reset link is invalid or has expired. Request a new one from the login page.",
+    "linkInvalid": "That link has expired or was already used. If you opened it in a different browser than the one you requested it from, request a new one and open it there."
   },
   "Common": {
     "loading": "Loading...",
@@ -461,5 +462,36 @@
         "a": "Please reach out through the Service's support channel."
       }
     ]
+  },
+  "Support": {
+    "title": "Contact Campusflat",
+    "subtitle": "Questions, feedback, or documents — send them here and the Campusflat team will reply.",
+    "empty": "No messages yet",
+    "emptyHint": "Write your first message below.",
+    "emptyAdminHint": "This user hasn't written yet.",
+    "placeholder": "Write a message…",
+    "send": "Send",
+    "attach": "Attach a file",
+    "removeAttachment": "Remove attachment",
+    "attachHint": "Photos or PDF, up to 10MB. Only you and the Campusflat team can see what you send.",
+    "fileTypeNotAllowed": "Please attach a photo (JPG, PNG, WebP, HEIC) or a PDF.",
+    "fileTooLarge": "That file is over 10MB.",
+    "uploadFailed": "Couldn't upload the file. Please try again.",
+    "sendFailed": "Couldn't send your message.",
+    "teamName": "Campusflat Team",
+    "hostBonusTitle": "Host signup bonus: ₩20,000 cash",
+    "hostBonusBody": "Add your property details, then send your business registration certificate here (attach a photo or PDF).",
+    "hostBonusCta": "Send my business registration",
+    "businessTemplate": "Here is my business registration certificate.\nBusiness name: ",
+    "navLabel": "Contact",
+    "inboxTitle": "Support inbox",
+    "inboxEmpty": "No conversations yet.",
+    "roleOwner": "Host",
+    "roleTenant": "Member",
+    "roleAdmin": "Admin",
+    "attachmentOnly": "Sent an attachment",
+    "newBadge": "New",
+    "back": "Back to inbox",
+    "unnamed": "Unnamed user"
   }
 }

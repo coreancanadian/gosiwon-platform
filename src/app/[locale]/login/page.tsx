@@ -8,9 +8,9 @@ export default async function LoginPage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; error?: string }>;
 }) {
-  const [{ locale }, { next }] = await Promise.all([params, searchParams]);
+  const [{ locale }, { next, error }] = await Promise.all([params, searchParams]);
   setRequestLocale(locale);
   const t = await getTranslations("Auth");
 
@@ -22,7 +22,13 @@ export default async function LoginPage({
 
       <div className="mt-6 space-y-4">
         {isSupabaseConfigured() ? (
-          <AuthForm mode="login" redirectTo={next ?? "/"} />
+          <AuthForm
+            mode="login"
+            redirectTo={next ?? "/"}
+            // The auth callback sends people here with ?error= when an
+            // emailed link was expired, reused, or opened in another browser.
+            initialError={error ? t("linkInvalid") : undefined}
+          />
         ) : (
           <DemoModeNotice />
         )}

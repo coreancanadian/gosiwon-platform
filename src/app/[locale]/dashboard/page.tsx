@@ -1,6 +1,7 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { Plus } from "lucide-react";
+import { ArrowRight, Gift, Plus } from "lucide-react";
 import { Link } from "@/i18n/navigation";
+import { getCurrentProfile } from "@/lib/auth";
 import { getOwnerStats } from "@/lib/data/owner";
 import { getHostPlan } from "@/lib/data/plan";
 import { PlanCard } from "@/components/dashboard/PlanCard";
@@ -24,14 +25,33 @@ export default async function DashboardOverviewPage({
   const { locale } = await params;
   setRequestLocale(locale);
 
-  const [t, stats, hostPlan] = await Promise.all([
+  const [t, tSupport, stats, hostPlan, profile] = await Promise.all([
     getTranslations("Dashboard"),
+    getTranslations("Support"),
     getOwnerStats(),
     getHostPlan(),
+    getCurrentProfile(),
   ]);
 
   return (
     <div>
+      {profile?.role === "owner" ? (
+        <Link
+          href="/support?topic=business"
+          className="mb-6 flex items-center gap-3 rounded-[var(--radius-card)] border border-brand-200 bg-brand-50 p-4 transition hover:bg-brand-100/60"
+        >
+          <Gift className="h-5 w-5 shrink-0 text-brand-600" aria-hidden />
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold text-ink-900">{tSupport("hostBonusTitle")}</span>
+            <span className="mt-0.5 block text-sm text-ink-600">{tSupport("hostBonusBody")}</span>
+          </span>
+          <span className="hidden shrink-0 items-center gap-1 text-sm font-semibold text-brand-700 sm:flex">
+            {tSupport("hostBonusCta")}
+            <ArrowRight className="h-4 w-4" aria-hidden />
+          </span>
+        </Link>
+      ) : null}
+
       <div className="mb-6">
         <PlanCard hostPlan={hostPlan} />
       </div>

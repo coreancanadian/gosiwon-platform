@@ -9,6 +9,7 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { EmailVerifiedBanner } from "@/components/EmailVerifiedBanner";
 import { HostPromo } from "@/components/HostPromo";
+import { SupportButton } from "@/components/SupportButton";
 import "../globals.css";
 
 export function generateStaticParams() {
@@ -53,6 +54,7 @@ export default async function LocaleLayout({
           <Header />
           <main className="flex-1">{children}</main>
           <Footer />
+          <SupportButton />
         </NextIntlClientProvider>
         {/* Omitted entirely (not just skipped client-side) when unset, so
             local dev and preview deploys never send traffic to GA. */}

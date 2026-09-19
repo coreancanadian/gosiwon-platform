@@ -7,8 +7,6 @@ import { Link } from "@/i18n/navigation";
 const DISMISS_KEY = "hostPromoDismissedUntil";
 const DISMISS_HOURS = 24;
 
-const CONTACT_EMAIL = "admin@campusflat.com";
-
 /**
  * Copy is picked from the browser's own language, not the site's next-intl
  * locale — a deliberate split from how the rest of the app is localized,
@@ -21,7 +19,7 @@ const COPY = {
     steps: [
       "사장님(호스트) 계정 만들기",
       "고시원 · 셰어하우스 정보 등록하기",
-      `사업자등록증을 ${CONTACT_EMAIL}로 보내기`,
+      "화면의 ‘문의하기’ 버튼으로 사업자등록증 보내기",
       "현금 2만원 받기",
     ],
     cta: "지금 시작하기",
@@ -34,7 +32,7 @@ const COPY = {
     steps: [
       "Create a host account",
       "Add your gosiwon / share-house details",
-      `Email your business registration certificate to ${CONTACT_EMAIL}`,
+      "Send your business registration certificate with the “Contact” button",
       "Get ₩20,000 cash",
     ],
     cta: "Get started",
