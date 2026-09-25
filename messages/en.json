@@ -13,7 +13,7 @@
     "language": "Language"
   },
   "Home": {
-    "title": "Find gosiwon and share houses across Korea",
+    "title": "Find private rooms and share houses across Korea",
     "subtitle": "Search by city, university, or subway station, then message the host directly.",
     "searchPlaceholder": "Enter a city, university, or subway station",
     "searchButton": "Search",
@@ -343,7 +343,7 @@
     "rejected": "Rejected"
   },
   "Footer": {
-    "tagline": "Gosiwon and share houses across Korea, in one place.",
+    "tagline": "Private rooms and share houses across Korea, in one place.",
     "forHosts": "For hosts",
     "listYourProperty": "List your property",
     "support": "Support",
