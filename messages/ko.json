@@ -15,7 +15,7 @@
   "Home": {
     "title": "한국의 고시원과 셰어하우스를 찾아보세요",
     "subtitle": "지역이나 지하철역으로 검색하고, 집주인에게 직접 문의하세요.",
-    "searchPlaceholder": "지역(시·구·도) 또는 지하철역을 입력하세요",
+    "searchPlaceholder": "도시, 대학교 또는 지하철역을 입력하세요",
     "searchButton": "검색",
     "seoulHeading": "서울 주요 지역",
     "incheonHeading": "인천 주요 지역",
