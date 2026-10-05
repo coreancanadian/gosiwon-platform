@@ -18,6 +18,7 @@ import {
   getPropertyAmenitySlugs,
   getPropertyStations,
   getAmenities,
+  getUniversities,
 } from "@/lib/data/queries";
 import { PhotoGallery, type GalleryImage } from "@/components/PhotoGallery";
 import { AmenitySection } from "@/components/AmenitySection";
@@ -32,6 +33,7 @@ import {
   housingCategoryOf,
   type PropertyWithRelations,
 } from "@/lib/types/database";
+import { displayName, displayAddress, romanizeName } from "@/lib/localize";
 
 type Props = { params: Promise<{ locale: string; slug: string }> };
 
@@ -42,7 +44,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const isKo = (locale as Locale) === "ko";
   return {
-    title: (isKo ? property.name_ko : property.name_en) || property.name_ko,
+    title: displayName(property, locale),
     description:
       (isKo ? property.description_ko : property.description_en) ?? undefined,
   };
@@ -76,21 +78,26 @@ export default async function PropertyPage({ params }: Props) {
   const property = (await getPropertyBySlug(slug)) as PropertyWithRelations | null;
   if (!property) notFound();
 
-  const [t, tEnum, tSearch, amenities, amenitySlugs, stations] = await Promise.all([
+  const [t, tEnum, tSearch, amenities, amenitySlugs, stations, universities] =
+    await Promise.all([
     getTranslations("Property"),
     getTranslations("Enums"),
     getTranslations("Search"),
     getAmenities(),
     getPropertyAmenitySlugs(property.id),
     getPropertyStations(property.id),
+    getUniversities(),
   ]);
 
   const isKo = (locale as Locale) === "ko";
   const loc = locale as Locale;
 
-  const name = (isKo ? property.name_ko : property.name_en) || property.name_ko;
-  const address =
-    (isKo ? property.address_ko : property.address_en) || property.address_ko;
+  // nearby_universities stores Korean names; the universities table has the
+  // curated English ones, and anything unlisted falls back to its sound.
+  const universityNamesEn = new Map(universities.map((u) => [u.name_ko, u.name_en]));
+
+  const name = displayName(property, locale);
+  const address = displayAddress(property, locale);
   const description = isKo ? property.description_ko : property.description_en;
 
   const images: GalleryImage[] = [...property.property_images]
@@ -197,7 +204,9 @@ export default async function PropertyPage({ params }: Props) {
               <Fact
                 icon={GraduationCap}
                 label={t("nearbyUniversities")}
-                value={property.nearby_universities.join(" · ")}
+                value={property.nearby_universities
+                  .map((n) => (isKo ? n : (universityNamesEn.get(n) ?? romanizeName(n))))
+                  .join(" · ")}
               />
             ) : null}
           </div>

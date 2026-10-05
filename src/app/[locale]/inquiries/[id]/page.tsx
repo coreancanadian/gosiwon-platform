@@ -8,7 +8,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { MessageThread } from "@/components/MessageThread";
 import { ReputationCard } from "@/components/ReputationCard";
 import { StayPanel } from "@/components/StayPanel";
-import type { Locale } from "@/i18n/routing";
+import { displayName } from "@/lib/localize";
 
 export default async function InquiryThreadPage({
   params,
@@ -31,10 +31,9 @@ export default async function InquiryThreadPage({
     getTranslations("Messages"),
   ]);
 
-  const isKo = (locale as Locale) === "ko";
   const property = thread.properties;
   const name = property
-    ? (isKo ? property.name_ko : property.name_en) || property.name_ko
+    ? displayName(property, locale)
     : "—";
 
   return (

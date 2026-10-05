@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { ClaimReviewActions } from "@/components/dashboard/ClaimReviewActions";
-import type { Locale } from "@/i18n/routing";
+import { displayName } from "@/lib/localize";
 
 interface ClaimRow {
   id: string;
@@ -48,7 +48,6 @@ export default async function ClaimsReviewPage({
     .order("created_at", { ascending: true });
 
   const claims = (data ?? []) as unknown as ClaimRow[];
-  const isKo = (locale as Locale) === "ko";
 
   return (
     <div>
@@ -64,8 +63,7 @@ export default async function ClaimsReviewPage({
         ) : (
           claims.map((claim) => {
             const name = claim.properties
-              ? (isKo ? claim.properties.name_ko : claim.properties.name_en) ||
-                claim.properties.name_ko
+              ? displayName(claim.properties, locale)
               : "—";
 
             return (

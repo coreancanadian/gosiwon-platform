@@ -10,6 +10,7 @@ import {
   housingCategoryOf,
   type PropertyWithRelations,
 } from "@/lib/types/database";
+import { displayName, displayAddress } from "@/lib/localize";
 
 export function PropertyCard({
   property,
@@ -28,11 +29,9 @@ export function PropertyCard({
   const locale = useLocale() as Locale;
   const t = useTranslations("Property");
   const tEnum = useTranslations("Enums");
-  const isKo = locale === "ko";
 
-  const name = (isKo ? property.name_ko : property.name_en) || property.name_ko;
-  const address =
-    (isKo ? property.address_ko : property.address_en) || property.address_ko;
+  const name = displayName(property, locale);
+  const address = displayAddress(property, locale);
   const price = formatPriceRange(property.price_min, property.price_max, locale);
   const availableRooms = property.rooms.filter((r) => r.is_available).length;
 

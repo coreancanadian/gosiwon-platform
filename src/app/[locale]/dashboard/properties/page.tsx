@@ -8,6 +8,7 @@ import {
 } from "@/components/dashboard/PropertyListActions";
 import { formatPriceRange } from "@/lib/format";
 import type { Locale } from "@/i18n/routing";
+import { displayName } from "@/lib/localize";
 
 const PAGE_SIZE = 25;
 
@@ -73,9 +74,7 @@ export default async function DashboardPropertiesPage({
                   </div>
 
                   <p className="mt-1.5 truncate text-base font-semibold text-ink-900">
-                    {loc === "ko"
-                      ? property.name_ko
-                      : property.name_en || property.name_ko}
+                    {displayName(property, loc)}
                   </p>
 
                   <p

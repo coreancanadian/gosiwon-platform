@@ -19,6 +19,7 @@ import type {
   PropertyType,
   PropertyWithRelations,
 } from "@/lib/types/database";
+import { displayName } from "@/lib/localize";
 
 /** Filters the server already applied, replayed when refetching by map bounds. */
 export interface ActiveFilters {
@@ -205,7 +206,7 @@ export function SearchResults({
           id: p.id,
           lat: p.lat!,
           lng: p.lng!,
-          label: (locale === "ko" ? p.name_ko : p.name_en) || p.name_ko,
+          label: displayName(p, locale),
           gender: p.gender,
         })),
     [properties, locale],

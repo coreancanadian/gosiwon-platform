@@ -7,8 +7,8 @@ import { getCurrentUser } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { InquiryForm } from "@/components/InquiryForm";
 import { DemoModeNotice } from "@/components/DemoModeNotice";
-import type { Locale } from "@/i18n/routing";
 import type { PropertyWithRelations } from "@/lib/types/database";
+import { displayName } from "@/lib/localize";
 
 export default async function InquirePage({
   params,
@@ -23,8 +23,7 @@ export default async function InquirePage({
 
   const t = await getTranslations("Inquiry");
   const user = await getCurrentUser();
-  const isKo = (locale as Locale) === "ko";
-  const name = (isKo ? property.name_ko : property.name_en) || property.name_ko;
+  const name = displayName(property, locale);
 
   return (
     <div className="mx-auto max-w-xl px-4 py-12 sm:px-6">

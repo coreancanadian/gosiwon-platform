@@ -4,6 +4,7 @@ import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import type { InquiryListItem } from "@/lib/data/inquiries";
 import type { InquiryStatus } from "@/lib/types/database";
+import { displayName } from "@/lib/localize";
 
 const STATUS_STYLES: Record<InquiryStatus, string> = {
   pending: "bg-amber-100 text-amber-800",
@@ -22,11 +23,10 @@ export async function InquiryCard({
   locale: Locale;
 }) {
   const tEnum = await getTranslations("Enums");
-  const isKo = locale === "ko";
 
   const property = inquiry.properties;
   const name = property
-    ? (isKo ? property.name_ko : property.name_en) || property.name_ko
+    ? displayName(property, locale)
     : "—";
 
   return (
