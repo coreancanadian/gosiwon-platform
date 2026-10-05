@@ -62,6 +62,40 @@ function romanizeWord(hangul: string): string {
   return capitalize(romanizeHangul(hangul));
 }
 
+/**
+ * Words every listing name leans on. Spelled out by sound they look odd
+ * ("Sweeohauseu"), so these read as the English a visitor expects. Longer
+ * entries come first so 쉐어하우스 wins over 하우스.
+ */
+const COMMON_WORDS: [string, string][] = [
+  ["쉐어하우스", "Share House"],
+  ["셰어하우스", "Share House"],
+  ["쉐어", "Share"],
+  ["하우스", "House"],
+  ["고시원", "Gosiwon"],
+  ["고시텔", "Gositel"],
+  ["원룸텔", "Oneroom-tel"],
+  ["리빙텔", "Livingtel"],
+  ["코리빙", "Coliving"],
+  ["레지던스", "Residence"],
+  ["스튜디오", "Studio"],
+  ["스테이", "Stay"],
+];
+const COMMON_WORD_PATTERN = new RegExp(
+  `(${COMMON_WORDS.map(([ko]) => ko).join("|")})`,
+);
+
+/** Romanize a listing-name word, swapping common words for English ones. */
+function romanizeNameWord(hangul: string): string {
+  const pieces = hangul.split(COMMON_WORD_PATTERN).filter(Boolean);
+  return pieces
+    .map((piece) => {
+      const common = COMMON_WORDS.find(([ko]) => ko === piece);
+      return common ? common[1] : romanizeWord(piece);
+    })
+    .join(" ");
+}
+
 /** "신림동" → "Sillim-dong"; plain words fall through to `romanizeWord`. */
 function romanizeAddressWord(hangul: string): string {
   const province = PROVINCES[hangul];
@@ -135,8 +169,8 @@ export function romanizeName(name: string): string {
     // "동덕여대점" → "Dongdeogyeodae-jeom": a trailing 점 is "branch".
     const branch = part.length > 2 && part.endsWith("점");
     const word = branch
-      ? `${romanizeWord(part.slice(0, -1))}-jeom`
-      : romanizeWord(part);
+      ? `${romanizeNameWord(part.slice(0, -1))}-jeom`
+      : romanizeNameWord(part);
 
     // "K하이스텔" — Latin text and a Korean word are separate words.
     const afterLatin = /[A-Za-z]$/.test(prev);
