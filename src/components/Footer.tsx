@@ -14,11 +14,11 @@ export async function Footer() {
       <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:px-6 md:grid-cols-4">
         <div className="md:col-span-2">
           <Image
-            src="/logo.png"
+            src="/campusflat-logo.png"
             alt={tNav("brand")}
-            width={1000}
-            height={151}
-            className="h-6 w-auto"
+            width={733}
+            height={192}
+            className="h-8 w-auto"
           />
           <p className="mt-2 max-w-sm text-sm text-ink-500">{t("tagline")}</p>
         </div>

@@ -22,12 +22,12 @@ export async function Header() {
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 sm:px-6">
         <Link href="/" className="flex items-center" aria-label={t("brand")}>
           <Image
-            src="/logo.png"
+            src="/campusflat-logo.png"
             alt={t("brand")}
-            width={1000}
-            height={151}
+            width={733}
+            height={192}
             priority
-            className="h-7 w-auto"
+            className="h-9 w-auto"
           />
         </Link>
 
