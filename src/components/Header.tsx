@@ -20,14 +20,14 @@ export async function Header() {
   return (
     <header className="sticky top-0 z-40 border-b border-ink-200 bg-white/90 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 sm:px-6">
-        <Link href="/" className="flex items-center" aria-label={t("brand")}>
+        <Link href="/" className="flex shrink-0 items-center" aria-label={t("brand")}>
           <Image
-            src="/campusflat-logo.png"
+            src="/campusflat-logo-v2.png"
             alt={t("brand")}
-            width={733}
+            width={890}
             height={192}
             priority
-            className="h-9 w-auto"
+            className="h-8 w-auto shrink-0 sm:h-10"
           />
         </Link>
 
