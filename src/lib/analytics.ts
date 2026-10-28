@@ -14,6 +14,9 @@ export type UserRole = "tenant" | "owner";
 export function trackSignUp(role: UserRole) {
   sendGAEvent("event", "sign_up", { method: "email", role });
   sendGAEvent("set", "user_properties", { user_type: role });
+  // Its own event so "host accounts created" is a one-click KPI (and an ad
+  // conversion) with no custom dimension to register or filter to remember.
+  if (role === "owner") sendGAEvent("event", "host_signup", { method: "email" });
 }
 
 /** A free-text keyword search from the home/search box (not a tap on a
@@ -31,4 +34,7 @@ export function trackSearch(term: string) {
  */
 export function trackMessageSent(isFirstMessage: boolean) {
   sendGAEvent("event", "message_sent", { is_first_message: isFirstMessage });
+  // Same reasoning as host_signup: a standalone event for "conversations
+  // started", usable directly as a key event without any parameter filter.
+  if (isFirstMessage) sendGAEvent("event", "first_message_sent");
 }
