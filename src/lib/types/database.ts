@@ -270,6 +270,48 @@ export type Profile = {
   created_at: string;
 }
 
+export type AdminPlatformStats = {
+  generated_at: string;
+  users: {
+    total: number;
+    tenants: number;
+    owners: number;
+    admins: number;
+    confirmed: number;
+    unconfirmed: number;
+    new_24h: number;
+    new_7d: number;
+    new_30d: number;
+    active_7d: number;
+  };
+  /** One entry per Seoul calendar day, oldest first, zeros included. */
+  signups_by_day: Array<{ day: string; count: number }>;
+  recent_signups: Array<{
+    id: string;
+    name: string | null;
+    email: string | null;
+    role: UserRole;
+    created_at: string;
+    confirmed: boolean;
+  }>;
+  listings: {
+    total: number;
+    published: number;
+    claimed: number;
+    pending: number;
+    unclaimed: number;
+  };
+  claims_waiting: number;
+  inquiries: {
+    total: number;
+    pending: number;
+    new_7d: number;
+    on_unclaimed: number;
+  };
+  messages_7d: number;
+  support_unread: number;
+};
+
 export type Inquiry = {
   id: string;
   property_id: string;
@@ -384,6 +426,11 @@ export interface Database {
       approve_property_claim: {
         Args: { p_claim_id: string };
         Returns: undefined;
+      };
+      /** See supabase/migrations/0012. Admin-only; raises for anyone else. */
+      admin_platform_stats: {
+        Args: Record<string, never>;
+        Returns: AdminPlatformStats;
       };
       /** See supabase/migrations/0011. Clears the caller's own unread flag. */
       mark_support_read: {

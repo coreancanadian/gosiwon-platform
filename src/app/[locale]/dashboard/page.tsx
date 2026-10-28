@@ -5,6 +5,8 @@ import { getCurrentProfile } from "@/lib/auth";
 import { getOwnerStats } from "@/lib/data/owner";
 import { getHostPlan } from "@/lib/data/plan";
 import { PlanCard } from "@/components/dashboard/PlanCard";
+import { AdminOverview } from "@/components/dashboard/AdminOverview";
+import { getAdminPlatformStats } from "@/lib/data/admin";
 
 function StatTile({ label, value }: { label: string; value: number }) {
   return (
@@ -25,12 +27,29 @@ export default async function DashboardOverviewPage({
   const { locale } = await params;
   setRequestLocale(locale);
 
-  const [t, tSupport, stats, hostPlan, profile] = await Promise.all([
+  const profile = await getCurrentProfile();
+
+  // The operator's landing page is the platform's numbers, not the house
+  // account's own host stats. Their listings are still under "My listings".
+  if (profile?.role === "admin") {
+    const [tAdmin, platform] = await Promise.all([
+      getTranslations("AdminOverview"),
+      getAdminPlatformStats(),
+    ]);
+    if (platform) return <AdminOverview stats={platform} locale={locale} />;
+    return (
+      <div className="rounded-[var(--radius-card)] border border-ink-200 bg-ink-50 p-6">
+        <p className="text-sm font-semibold text-ink-900">{tAdmin("setupTitle")}</p>
+        <p className="mt-1 text-sm text-ink-600">{tAdmin("setupBody")}</p>
+      </div>
+    );
+  }
+
+  const [t, tSupport, stats, hostPlan] = await Promise.all([
     getTranslations("Dashboard"),
     getTranslations("Support"),
     getOwnerStats(),
     getHostPlan(),
-    getCurrentProfile(),
   ]);
 
   return (
