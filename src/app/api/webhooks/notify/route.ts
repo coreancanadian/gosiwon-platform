@@ -2,13 +2,15 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { SITE_URL, sendOperatorEmail, type OperatorEmail } from "@/lib/email";
+import { SITE_URL, sendEmail, sendOperatorEmail, type NotificationEmail } from "@/lib/email";
+import { displayName } from "@/lib/localize";
 import type { UserRole } from "@/lib/types/database";
 
 /**
  * Called by the database triggers in migration 0013 when someone signs up or
- * sends a message, and emails the operator about it. The request only names a
- * row; everything shown in the email is looked up here.
+ * sends a message. Emails the operator about it, and tells the member on the
+ * other end of a message that something is waiting for them. The request only
+ * names a row; everything shown in an email is looked up here.
  *
  * Lives under /api so the i18n proxy's matcher skips it.
  */
@@ -52,6 +54,7 @@ async function describePerson(admin: Admin, userId: string) {
     role,
     name: profile?.full_name || "이름 없음",
     email: auth?.user?.email ?? "—",
+    confirmed: Boolean(auth?.user?.email_confirmed_at),
   };
 }
 
@@ -73,7 +76,7 @@ async function listingRow(admin: Admin, propertyId: string | null) {
   };
 }
 
-async function signupEmail(admin: Admin, id: string): Promise<OperatorEmail | null> {
+async function signupEmail(admin: Admin, id: string): Promise<NotificationEmail | null> {
   const person = await describePerson(admin, id);
   if (person.role === "admin") return null;
   return {
@@ -89,7 +92,7 @@ async function signupEmail(admin: Admin, id: string): Promise<OperatorEmail | nu
 }
 
 /** A message inside an inquiry thread: always tied to a listing. */
-async function messageEmail(admin: Admin, id: string): Promise<OperatorEmail | null> {
+async function messageEmail(admin: Admin, id: string): Promise<NotificationEmail | null> {
   const { data: message } = await admin
     .from("messages")
     .select("sender_id, body, created_at, inquiry_id")
@@ -117,7 +120,7 @@ async function messageEmail(admin: Admin, id: string): Promise<OperatorEmail | n
   ]);
 
   const isFirst = (count ?? 0) <= 1;
-  const rows: OperatorEmail["rows"] = [
+  const rows: NonNullable<NotificationEmail["rows"]> = [
     { label: "보낸 사람", value: `${person.name} (${ROLE_LABEL[person.role]})` },
     { label: "이메일", value: person.email },
   ];
@@ -140,7 +143,7 @@ async function messageEmail(admin: Admin, id: string): Promise<OperatorEmail | n
 }
 
 /** A message to the operator through the Contact button. */
-async function supportEmail(admin: Admin, id: string): Promise<OperatorEmail | null> {
+async function supportEmail(admin: Admin, id: string): Promise<NotificationEmail | null> {
   const { data: message } = await admin
     .from("support_messages")
     .select("sender_id, body, created_at, thread_id, property_id, attachment_name")
@@ -156,7 +159,7 @@ async function supportEmail(admin: Admin, id: string): Promise<OperatorEmail | n
     admin.from("support_threads").select("user_id").eq("id", message.thread_id).maybeSingle(),
   ]);
 
-  const rows: OperatorEmail["rows"] = [
+  const rows: NonNullable<NotificationEmail["rows"]> = [
     { label: "보낸 사람", value: `${person.name} (${ROLE_LABEL[person.role]})` },
     { label: "이메일", value: person.email },
   ];
@@ -176,6 +179,130 @@ async function supportEmail(admin: Admin, id: string): Promise<OperatorEmail | n
   };
 }
 
+/** Replies sent this close together become one email, not one per message. */
+const BURST_WINDOW_MS = 10 * 60 * 1000;
+
+const NOTICE_FOOTER =
+  "이 메일은 발신 전용입니다. 답장은 사이트에서 보내 주세요. / This address doesn't accept replies, so please respond on the site.";
+
+type MemberNotice = { to: string; email: NotificationEmail };
+
+/** Who a notice can go to: never the operator, who gets their own email. */
+async function noticeRecipient(admin: Admin, userId: string) {
+  const person = await describePerson(admin, userId);
+  // An unconfirmed address may not belong to the person who typed it.
+  if (person.role === "admin" || !person.confirmed) return null;
+  return person;
+}
+
+function isBurst(
+  previous: { sender_id: string; created_at: string } | null,
+  current: { sender_id: string; created_at: string },
+): boolean {
+  if (!previous || previous.sender_id !== current.sender_id) return false;
+  const gap = new Date(current.created_at).getTime() - new Date(previous.created_at).getTime();
+  return gap < BURST_WINDOW_MS;
+}
+
+/**
+ * Inquiry thread: tells the other party a message is waiting. Message text is
+ * left out on purpose, so a private conversation isn't copied into a mailbox.
+ */
+async function messageNotice(admin: Admin, id: string): Promise<MemberNotice | null> {
+  const { data: message } = await admin
+    .from("messages")
+    .select("sender_id, created_at, inquiry_id")
+    .eq("id", id)
+    .maybeSingle();
+  if (!message) return null;
+
+  const { data: inquiry } = await admin
+    .from("inquiries")
+    .select("tenant_id, owner_id, properties (name_ko, name_en)")
+    .eq("id", message.inquiry_id)
+    .maybeSingle();
+  if (!inquiry) return null;
+
+  const recipientId =
+    message.sender_id === inquiry.tenant_id ? inquiry.owner_id : inquiry.tenant_id;
+  const [recipient, { data: previous }] = await Promise.all([
+    noticeRecipient(admin, recipientId),
+    admin
+      .from("messages")
+      .select("sender_id, created_at")
+      .eq("inquiry_id", message.inquiry_id)
+      .lt("created_at", message.created_at)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+  if (!recipient || isBurst(previous, message)) return null;
+
+  const listing = inquiry.properties as unknown as { name_ko: string; name_en: string | null } | null;
+  const nameKo = listing?.name_ko ?? "매물";
+  const nameEn = listing ? displayName(listing, "en") : "your listing inquiry";
+
+  return {
+    to: recipient.email,
+    email: {
+      subject: `[캠퍼스플랫] ${nameKo} 관련 새 메시지 / New message about ${nameEn}`,
+      intro: [
+        `'${nameKo}' 관련 새 메시지가 도착했습니다. 아래 버튼을 눌러 확인해 주세요.`,
+        `You have a new message about ${nameEn}. Use the button below to read it.`,
+      ],
+      cta: {
+        label: "메시지 확인하기 / View message",
+        href: `${SITE_URL}/inquiries/${message.inquiry_id}`,
+      },
+      footer: NOTICE_FOOTER,
+    },
+  };
+}
+
+/** Contact channel: tells a member the team has replied. */
+async function supportNotice(admin: Admin, id: string): Promise<MemberNotice | null> {
+  const { data: message } = await admin
+    .from("support_messages")
+    .select("sender_id, created_at, thread_id")
+    .eq("id", id)
+    .maybeSingle();
+  if (!message) return null;
+
+  const { data: thread } = await admin
+    .from("support_threads")
+    .select("user_id")
+    .eq("id", message.thread_id)
+    .maybeSingle();
+  // A member writing in is the operator's email, not a notice to themselves.
+  if (!thread || thread.user_id === message.sender_id) return null;
+
+  const [recipient, { data: previous }] = await Promise.all([
+    noticeRecipient(admin, thread.user_id),
+    admin
+      .from("support_messages")
+      .select("sender_id, created_at")
+      .eq("thread_id", message.thread_id)
+      .lt("created_at", message.created_at)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+  if (!recipient || isBurst(previous, message)) return null;
+
+  return {
+    to: recipient.email,
+    email: {
+      subject: "[캠퍼스플랫] 운영팀 답장이 도착했습니다 / New reply from the Campusflat team",
+      intro: [
+        "캠퍼스플랫 운영팀이 답장을 보냈습니다. 아래 버튼을 눌러 확인해 주세요.",
+        "The Campusflat team has replied to you. Use the button below to read it.",
+      ],
+      cta: { label: "답장 확인하기 / View reply", href: `${SITE_URL}/support` },
+      footer: NOTICE_FOOTER,
+    },
+  };
+}
+
 export async function POST(request: NextRequest) {
   if (!secretMatches(request.headers.get("x-webhook-secret"))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -189,18 +316,29 @@ export async function POST(request: NextRequest) {
 
   try {
     const admin = createAdminClient();
-    const email =
+    const [operatorEmail, notice] = await Promise.all([
       type === "signup"
-        ? await signupEmail(admin, id)
+        ? signupEmail(admin, id)
         : type === "message"
-          ? await messageEmail(admin, id)
-          : await supportEmail(admin, id);
+          ? messageEmail(admin, id)
+          : supportEmail(admin, id),
+      type === "message"
+        ? messageNotice(admin, id)
+        : type === "support_message"
+          ? supportNotice(admin, id)
+          : null,
+    ]);
 
     // Null covers the operator's own activity and rows that no longer exist.
-    if (!email) return NextResponse.json({ sent: false });
+    // Settled separately so one failed send doesn't lose the other email.
+    const results = await Promise.allSettled([
+      operatorEmail ? sendOperatorEmail(operatorEmail) : null,
+      notice ? sendEmail(notice.to, notice.email) : null,
+    ]);
+    const failed = results.find((r) => r.status === "rejected");
+    if (failed) throw failed.reason;
 
-    await sendOperatorEmail(email);
-    return NextResponse.json({ sent: true });
+    return NextResponse.json({ sent: Boolean(operatorEmail || notice) });
   } catch (error) {
     console.error("Notification failed", type, id, error);
     return NextResponse.json({ error: "Notification failed" }, { status: 500 });

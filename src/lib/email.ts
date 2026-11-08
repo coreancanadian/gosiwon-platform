@@ -2,13 +2,17 @@ import "server-only";
 
 export const SITE_URL = "https://www.campusflat.com";
 
-export interface OperatorEmail {
+export interface NotificationEmail {
   subject: string;
+  /** Opening paragraphs, one per entry. */
+  intro?: string[];
   /** Plain label/value rows. Values are escaped here, so user text is safe. */
-  rows: Array<{ label: string; value: string; href?: string }>;
+  rows?: Array<{ label: string; value: string; href?: string }>;
   /** A longer block of user-written text, shown as-is below the rows. */
   message?: string;
   cta?: { label: string; href: string };
+  /** Small print under everything else. */
+  footer?: string;
 }
 
 function escapeHtml(text: string): string {
@@ -19,7 +23,10 @@ function escapeHtml(text: string): string {
     .replace(/"/g, "&quot;");
 }
 
-function renderHtml({ rows, message, cta }: OperatorEmail): string {
+function renderHtml({ intro = [], rows = [], message, cta, footer }: NotificationEmail): string {
+  const introHtml = intro
+    .map((line) => `<p style="margin:0 0 12px;color:#101828">${escapeHtml(line)}</p>`)
+    .join("");
   const rowHtml = rows
     .map(({ label, value, href }) => {
       const shown = escapeHtml(value);
@@ -35,24 +42,36 @@ function renderHtml({ rows, message, cta }: OperatorEmail): string {
   const ctaHtml = cta
     ? `<p style="margin-top:20px"><a href="${escapeHtml(cta.href)}" style="display:inline-block;padding:10px 16px;background:#004aad;color:#fff;border-radius:8px;text-decoration:none">${escapeHtml(cta.label)}</a></p>`
     : "";
-  return `<div style="font-family:-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:14px;line-height:1.5"><table style="border-collapse:collapse">${rowHtml}</table>${messageHtml}${ctaHtml}</div>`;
+  const tableHtml = rowHtml ? `<table style="border-collapse:collapse">${rowHtml}</table>` : "";
+  const footerHtml = footer
+    ? `<p style="margin-top:20px;font-size:12px;color:#667085">${escapeHtml(footer)}</p>`
+    : "";
+  return `<div style="font-family:-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:14px;line-height:1.5">${introHtml}${tableHtml}${messageHtml}${ctaHtml}${footerHtml}</div>`;
 }
 
-function renderText({ rows, message, cta }: OperatorEmail): string {
-  const lines = rows.map(({ label, value, href }) =>
-    `${label}: ${value}${href ? ` (${href})` : ""}`,
+function renderText({ intro = [], rows = [], message, cta, footer }: NotificationEmail): string {
+  const lines = intro.flatMap((line) => [line, ""]);
+  lines.push(
+    ...rows.map(({ label, value, href }) => `${label}: ${value}${href ? ` (${href})` : ""}`),
   );
   if (message) lines.push("", message);
   if (cta) lines.push("", `${cta.label}: ${cta.href}`);
-  return lines.join("\n");
+  if (footer) lines.push("", footer);
+  return lines.join("\n").trim();
 }
 
-/** Sends one notification to the operator through Resend. Throws on failure. */
-export async function sendOperatorEmail(email: OperatorEmail): Promise<void> {
-  const apiKey = process.env.RESEND_API_KEY;
+/** Sends one notification to the operator. Throws on failure. */
+export async function sendOperatorEmail(email: NotificationEmail): Promise<void> {
   const to = process.env.ADMIN_NOTIFICATION_EMAIL;
+  if (!to) throw new Error("Email notification settings are not configured.");
+  await sendEmail(to, email);
+}
+
+/** Sends one notification through Resend. Throws on failure. */
+export async function sendEmail(to: string, email: NotificationEmail): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.NOTIFICATION_EMAIL_FROM;
-  if (!apiKey || !to || !from) {
+  if (!apiKey || !from) {
     throw new Error("Email notification settings are not configured.");
   }
 
