@@ -23,9 +23,13 @@ export function SupportFab({
   if (pathname === "/support" || pathname.startsWith("/dashboard/support")) return null;
   const onSearch = pathname.startsWith("/search");
 
+  // From a listing, carry it along so the team can see what this is about.
+  const listingSlug = pathname.match(/^\/property\/([^/]+)/)?.[1];
+  const target = listingSlug && href === "/support" ? `${href}?property=${listingSlug}` : href;
+
   return (
     <Link
-      href={href}
+      href={target}
       aria-label={unread > 0 ? `${label} (${unread})` : label}
       className={`fixed right-4 bottom-5 z-40 h-12 items-center gap-2 rounded-full bg-brand-500 px-4 text-sm font-semibold text-white shadow-lg shadow-ink-900/20 transition hover:bg-brand-600 ${
         onSearch ? "hidden lg:flex" : "flex"

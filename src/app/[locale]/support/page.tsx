@@ -3,6 +3,7 @@ import { Gift } from "lucide-react";
 import { redirect } from "@/i18n/navigation";
 import { getCurrentProfile } from "@/lib/auth";
 import { getSupportThread } from "@/lib/data/support";
+import { getPropertyBySlug } from "@/lib/data/queries";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { DemoModeNotice } from "@/components/DemoModeNotice";
 import { SupportChat } from "@/components/SupportChat";
@@ -13,9 +14,9 @@ export default async function SupportPage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ topic?: string }>;
+  searchParams: Promise<{ topic?: string; property?: string }>;
 }) {
-  const [{ locale }, { topic }] = await Promise.all([params, searchParams]);
+  const [{ locale }, { topic, property: propertySlug }] = await Promise.all([params, searchParams]);
   setRequestLocale(locale);
   const t = await getTranslations("Support");
 
@@ -29,7 +30,8 @@ export default async function SupportPage({
 
   const profile = await getCurrentProfile();
   if (!profile) {
-    redirect({ href: "/login?next=/support", locale });
+    const next = propertySlug ? `/support?property=${encodeURIComponent(propertySlug)}` : "/support";
+    redirect({ href: `/login?next=${encodeURIComponent(next)}`, locale });
     return null;
   }
   // The operator reads and answers from the inbox, not from a thread of their own.
@@ -38,7 +40,10 @@ export default async function SupportPage({
     return null;
   }
 
-  const thread = await getSupportThread(profile.id);
+  const [thread, property] = await Promise.all([
+    getSupportThread(profile.id),
+    propertySlug ? getPropertyBySlug(propertySlug) : null,
+  ]);
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
@@ -61,6 +66,11 @@ export default async function SupportPage({
           viewerId={profile.id}
           viewerIsAdmin={false}
           peerName={t("teamName")}
+          contextListing={
+            property
+              ? { slug: property.slug, name_ko: property.name_ko, name_en: property.name_en }
+              : null
+          }
           // Arriving from the host promo pre-fills the message so the host
           // only has to attach the file.
           initialBody={topic === "business" ? t("businessTemplate") : ""}

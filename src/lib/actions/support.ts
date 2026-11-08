@@ -15,6 +15,9 @@ const sendSchema = z
     // Actions cap request bodies far below a scanned document's size.
     attachmentPath: z.string().max(300).optional(),
     attachmentName: z.string().max(200).optional(),
+    // The listing the sender came from. Resolved to an id below rather than
+    // taken from the client as one.
+    propertySlug: z.string().max(200).optional(),
   })
   .refine((v) => v.body.length > 0 || Boolean(v.attachmentPath), {
     message: "empty",
@@ -32,7 +35,7 @@ export async function sendSupportMessage(input: unknown): Promise<ActionResult> 
 
   const parsed = sendSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Message can't be empty." };
-  const { body, threadUserId, attachmentPath, attachmentName } = parsed.data;
+  const { body, threadUserId, attachmentPath, attachmentName, propertySlug } = parsed.data;
 
   const supabase = await createClient();
   const {
@@ -82,8 +85,13 @@ export async function sendSupportMessage(input: unknown): Promise<ActionResult> 
   }
   if (!thread) return { ok: false, error: "Couldn't open the conversation." };
 
+  const { data: property } = propertySlug
+    ? await supabase.from("properties").select("id").eq("slug", propertySlug).maybeSingle()
+    : { data: null };
+
   const { error } = await supabase.from("support_messages").insert({
     thread_id: thread.id,
+    property_id: property?.id ?? null,
     sender_id: user.id,
     body,
     attachment_path: attachmentPath ?? null,

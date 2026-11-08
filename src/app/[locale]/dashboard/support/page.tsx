@@ -1,9 +1,10 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { Paperclip } from "lucide-react";
+import { Home, Paperclip } from "lucide-react";
 import { Link, redirect } from "@/i18n/navigation";
 import { getCurrentProfile } from "@/lib/auth";
 import { listSupportInbox } from "@/lib/data/support";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { displayName } from "@/lib/localize";
 
 /** Admin-only inbox: every user's conversation, newest activity first. */
 export default async function SupportInboxPage({
@@ -64,6 +65,12 @@ export default async function SupportInboxPage({
                       </span>
                     ) : null}
                   </span>
+                  {row.property ? (
+                    <span className="mt-1 flex items-center gap-1.5 text-xs font-medium text-brand-700">
+                      <Home className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                      <span className="truncate">{displayName(row.property, locale)}</span>
+                    </span>
+                  ) : null}
                   <span className="mt-1 flex items-center gap-1.5 text-sm text-ink-500">
                     {row.hasAttachment ? <Paperclip className="h-3.5 w-3.5 shrink-0" aria-hidden /> : null}
                     <span className="truncate">{row.preview || t("attachmentOnly")}</span>

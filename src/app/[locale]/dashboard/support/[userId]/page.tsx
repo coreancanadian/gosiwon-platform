@@ -1,8 +1,9 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Home } from "lucide-react";
 import { Link, redirect } from "@/i18n/navigation";
 import { getCurrentProfile } from "@/lib/auth";
-import { getSupportThread } from "@/lib/data/support";
+import { getSupportThread, listMemberInquiries } from "@/lib/data/support";
+import { displayName } from "@/lib/localize";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { SupportChat } from "@/components/SupportChat";
@@ -26,9 +27,10 @@ export default async function SupportConversationPage({
   }
 
   const supabase = await createClient();
-  const [{ data: person }, thread] = await Promise.all([
+  const [{ data: person }, thread, inquiries] = await Promise.all([
     supabase.from("profiles").select("full_name, role").eq("id", userId).maybeSingle(),
     getSupportThread(userId),
+    listMemberInquiries(userId, me.id),
   ]);
   const name = person?.full_name ?? t("unnamed");
   const roleLabel = { owner: t("roleOwner"), tenant: t("roleTenant"), admin: t("roleAdmin") };
@@ -51,6 +53,40 @@ export default async function SupportConversationPage({
           </span>
         ) : null}
       </div>
+
+      {inquiries.length > 0 ? (
+        <div className="mt-4 rounded-[var(--radius-card)] border border-ink-200 p-4">
+          <p className="text-xs font-semibold text-ink-500">{t("memberInquiries")}</p>
+          <ul className="mt-2 space-y-1.5">
+            {inquiries.map((inquiry) => (
+              <li key={inquiry.id} className="flex items-center gap-2 text-sm">
+                <Home className="h-4 w-4 shrink-0 text-ink-400" aria-hidden />
+                {inquiry.property ? (
+                  <Link
+                    href={`/property/${inquiry.property.slug}`}
+                    className="min-w-0 truncate font-medium text-brand-600 hover:underline"
+                  >
+                    {displayName(inquiry.property, locale)}
+                  </Link>
+                ) : (
+                  <span className="text-ink-500">—</span>
+                )}
+                <span suppressHydrationWarning className="shrink-0 text-xs text-ink-400">
+                  {new Date(inquiry.createdAt).toLocaleDateString(locale === "ko" ? "ko-KR" : "en-US")}
+                </span>
+                {inquiry.threadHref ? (
+                  <Link
+                    href={inquiry.threadHref}
+                    className="ml-auto shrink-0 text-xs font-medium text-ink-600 hover:underline"
+                  >
+                    {t("viewThread")}
+                  </Link>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       <div className="mt-5">
         <SupportChat thread={thread} viewerId={me.id} viewerIsAdmin peerName={name} />

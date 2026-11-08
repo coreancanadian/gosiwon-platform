@@ -3,10 +3,12 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
-import { FileText, Loader2, Paperclip, Send, X } from "lucide-react";
+import { FileText, Home, Loader2, Paperclip, Send, X } from "lucide-react";
+import { Link } from "@/i18n/navigation";
+import { displayName } from "@/lib/localize";
 import { markSupportRead, sendSupportMessage } from "@/lib/actions/support";
 import { createClient } from "@/lib/supabase/client";
-import type { SupportThreadView } from "@/lib/data/support";
+import type { ListingRef, SupportThreadView } from "@/lib/data/support";
 
 // Mirrors the bucket's own limits (see migration 0011) so a bad file is
 // rejected here with a clear message instead of a generic upload failure.
@@ -34,6 +36,7 @@ export function SupportChat({
   viewerIsAdmin,
   peerName,
   initialBody = "",
+  contextListing = null,
 }: {
   thread: SupportThreadView;
   viewerId: string;
@@ -41,6 +44,8 @@ export function SupportChat({
   /** Who the viewer is talking to: the operator team, or the user (admin view). */
   peerName: string;
   initialBody?: string;
+  /** The listing the user came from; attached to what they send from here. */
+  contextListing?: ListingRef | null;
 }) {
   const t = useTranslations("Support");
   const locale = useLocale();
@@ -48,6 +53,7 @@ export function SupportChat({
 
   const [body, setBody] = useState(initialBody);
   const [file, setFile] = useState<File | null>(null);
+  const [listing, setListing] = useState(contextListing);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const fileInput = useRef<HTMLInputElement>(null);
@@ -106,6 +112,7 @@ export function SupportChat({
         threadUserId: viewerIsAdmin ? thread.ownerId : undefined,
         attachmentPath,
         attachmentName: file?.name,
+        propertySlug: listing?.slug,
       });
       if (!result.ok) {
         setError(result.error ?? t("sendFailed"));
@@ -129,13 +136,28 @@ export function SupportChat({
             </p>
           </div>
         ) : (
-          thread.messages.map((m) => {
+          thread.messages.map((m, i) => {
             const isMine = m.senderId === viewerId;
+            // Label a listing where the conversation turns to it, not on every
+            // message in a row about the same place.
+            const showListing =
+              m.property && m.property.slug !== thread.messages[i - 1]?.property?.slug;
             return (
               <div key={m.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
                 <div className="max-w-[80%]">
                   {!isMine ? (
                     <p className="mb-1 px-1 text-[11px] font-medium text-ink-400">{peerName}</p>
+                  ) : null}
+                  {showListing && m.property ? (
+                    <Link
+                      href={`/property/${m.property.slug}`}
+                      className="mb-1.5 flex items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-2.5 py-1.5 text-xs font-medium text-brand-700 hover:underline"
+                    >
+                      <Home className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                      <span className="min-w-0 truncate">
+                        {t("askingAbout")}: {displayName(m.property, locale)}
+                      </span>
+                    </Link>
                   ) : null}
                   <div
                     className={`rounded-2xl px-3.5 py-2.5 text-sm whitespace-pre-line ${
@@ -178,6 +200,24 @@ export function SupportChat({
       ) : null}
 
       <form onSubmit={onSend} className="space-y-2">
+        {listing ? (
+          <div className="flex items-center gap-2 rounded-xl border border-brand-200 bg-brand-50 px-3 py-2 text-sm text-brand-800">
+            <Home className="h-4 w-4 shrink-0" aria-hidden />
+            <span className="min-w-0 flex-1 truncate">
+              {t("askingAbout")}: {displayName(listing, locale)}
+            </span>
+            <button
+              type="button"
+              onClick={() => setListing(null)}
+              aria-label={t("removeListing")}
+              title={t("removeListing")}
+              className="shrink-0 rounded-full p-1 text-brand-600 transition hover:bg-brand-100"
+            >
+              <X className="h-4 w-4" aria-hidden />
+            </button>
+          </div>
+        ) : null}
+
         {file ? (
           <div className="flex items-center gap-2 rounded-xl border border-ink-200 bg-ink-50 px-3 py-2 text-sm text-ink-700">
             <FileText className="h-4 w-4 shrink-0 text-ink-500" aria-hidden />

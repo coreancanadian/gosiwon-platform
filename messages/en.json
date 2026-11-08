@@ -404,11 +404,11 @@
       },
       {
         "heading": "4. How we use this information",
-        "body": "Collected information is used only to power listing search, deliver inquiries and messages, manage accounts, and improve the Service. A host's and tenant's contact details are shared with each other only once an inquiry is accepted, and are not disclosed to any other party."
+        "body": "Collected information is used only to power listing search, deliver inquiries and messages, manage accounts, and improve the Service. A host's and tenant's contact details are shared with each other only once an inquiry is accepted, and are not disclosed to any other party. To run the service and respond to members, the operator may receive email notifications of new sign-ups and messages, including the member's name, email address, member type, the message text, and the related listing."
       },
       {
         "heading": "5. Third-party processing",
-        "body": "The Service uses Supabase (servers located in Seoul, South Korea) for its database and authentication, and Kakao Maps and Google Maps to display maps. Using the map may send your search terms and IP address to those providers. We do not sell personal information or share it with third parties for marketing purposes. We also use Google Analytics to understand how the Service is used; this can send the pages you visit, search terms, your account type (room seeker or host), whether an inquiry was sent, a cookie identifier, and device and browser details to Google. The content of your messages, your email address, and your name are not sent."
+        "body": "The Service uses Supabase (servers located in Seoul, South Korea) for its database and authentication, and Kakao Maps and Google Maps to display maps. Using the map may send your search terms and IP address to those providers. We do not sell personal information or share it with third parties for marketing purposes. We also use Google Analytics to understand how the Service is used; this can send the pages you visit, search terms, your account type (room seeker or host), whether an inquiry was sent, a cookie identifier, and device and browser details to Google. The content of your messages, your email address, and your name are not sent. Emails, including account emails and operator notifications, are sent through Resend (Resend, Inc., United States), which receives the recipient's address and the content of the email. Operator notifications are delivered to the operator's Google (Gmail) mailbox."
       },
       {
         "heading": "6. Cookies",
@@ -496,7 +496,11 @@
     "attachmentOnly": "Sent an attachment",
     "newBadge": "New",
     "back": "Back to inbox",
-    "unnamed": "Unnamed user"
+    "unnamed": "Unnamed user",
+    "askingAbout": "About",
+    "removeListing": "Don't attach this listing",
+    "memberInquiries": "Listings this member inquired about",
+    "viewThread": "Open conversation"
   },
   "AdminOverview": {
     "title": "Platform overview",

@@ -2,12 +2,14 @@ import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import type { Profile, SupportMessage, UserRole } from "@/lib/types/database";
+import type { Profile, Property, SupportMessage, UserRole } from "@/lib/types/database";
 
 const BUCKET = "support-attachments";
 // Documents are private, so links are short-lived signed URLs regenerated on
 // each page load rather than anything that could be shared onward for long.
 const SIGNED_URL_TTL_SECONDS = 60 * 60;
+
+export type ListingRef = Pick<Property, "slug" | "name_ko" | "name_en">;
 
 export interface SupportMessageView {
   id: string;
@@ -15,6 +17,8 @@ export interface SupportMessageView {
   body: string;
   createdAt: string;
   attachment: { name: string; url: string | null } | null;
+  /** The listing the sender was viewing when they wrote, if any. */
+  property: ListingRef | null;
 }
 
 export interface SupportThreadView {
@@ -39,10 +43,12 @@ export async function getSupportThread(ownerId: string): Promise<SupportThreadVi
 
   const { data } = await supabase
     .from("support_messages")
-    .select("*")
+    .select("*, properties (slug, name_ko, name_en)")
     .eq("thread_id", thread.id)
     .order("created_at", { ascending: true });
-  const rows = (data ?? []) as SupportMessage[];
+  const rows = (data ?? []) as unknown as Array<
+    SupportMessage & { properties: ListingRef | null }
+  >;
 
   const paths = rows
     .map((r) => r.attachment_path)
@@ -71,6 +77,7 @@ export async function getSupportThread(ownerId: string): Promise<SupportThreadVi
             url: urlByPath.get(r.attachment_path) ?? null,
           }
         : null,
+      property: r.properties,
     })),
   };
 }
@@ -83,6 +90,8 @@ export interface SupportInboxRow {
   unread: boolean;
   preview: string;
   hasAttachment: boolean;
+  /** The listing the latest message was about, if any. */
+  property: ListingRef | null;
 }
 
 /** Admin inbox: every conversation, newest activity first. */
@@ -104,7 +113,7 @@ export async function listSupportInbox(): Promise<SupportInboxRow[]> {
     supabase.from("profiles").select("id, full_name, role").in("id", userIds),
     supabase
       .from("support_messages")
-      .select("thread_id, body, attachment_path, created_at")
+      .select("thread_id, body, attachment_path, created_at, properties (slug, name_ko, name_en)")
       .in("thread_id", threadIds)
       .order("created_at", { ascending: false })
       .limit(1000),
@@ -114,8 +123,16 @@ export async function listSupportInbox(): Promise<SupportInboxRow[]> {
     ((profiles ?? []) as Pick<Profile, "id" | "full_name" | "role">[]).map((p) => [p.id, p]),
   );
   // Newest-first, so the first message seen per thread is its latest.
-  const latestByThread = new Map<string, { body: string; attachment_path: string | null }>();
-  for (const m of messages ?? []) {
+  const latestByThread = new Map<
+    string,
+    { body: string; attachment_path: string | null; properties: ListingRef | null }
+  >();
+  for (const m of (messages ?? []) as unknown as Array<{
+    thread_id: string;
+    body: string;
+    attachment_path: string | null;
+    properties: ListingRef | null;
+  }>) {
     if (!latestByThread.has(m.thread_id)) latestByThread.set(m.thread_id, m);
   }
 
@@ -130,6 +147,7 @@ export async function listSupportInbox(): Promise<SupportInboxRow[]> {
       unread: t.admin_unread,
       preview: latest?.body ?? "",
       hasAttachment: Boolean(latest?.attachment_path),
+      property: latest?.properties ?? null,
     };
   });
 }
@@ -145,4 +163,43 @@ export async function getSupportUnreadCount(role: UserRole): Promise<number> {
   // A failed count (e.g. before the migration is applied) must never break
   // the page it's shown on — this runs in the site-wide layout.
   return count ?? 0;
+}
+
+export interface MemberInquiry {
+  id: string;
+  createdAt: string;
+  /** Null when this is another host's thread, which only its parties can open. */
+  threadHref: string | null;
+  property: ListingRef | null;
+}
+
+/**
+ * Every listing a member has inquired about, for the admin's conversation
+ * view. Gives context even for support messages that carry no listing of
+ * their own.
+ */
+export async function listMemberInquiries(
+  memberId: string,
+  viewerId: string,
+): Promise<MemberInquiry[]> {
+  if (!isSupabaseConfigured()) return [];
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("inquiries")
+    .select("id, created_at, owner_id, properties (slug, name_ko, name_en)")
+    .eq("tenant_id", memberId)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  return ((data ?? []) as unknown as Array<{
+    id: string;
+    created_at: string;
+    owner_id: string;
+    properties: ListingRef | null;
+  }>).map((row) => ({
+    id: row.id,
+    createdAt: row.created_at,
+    threadHref: row.owner_id === viewerId ? `/inquiries/${row.id}` : null,
+    property: row.properties,
+  }));
 }

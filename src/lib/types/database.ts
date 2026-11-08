@@ -360,6 +360,8 @@ export type SupportMessage = {
   body: string;
   attachment_path: string | null;
   attachment_name: string | null;
+  /** The listing the sender was viewing when they wrote, if any. */
+  property_id: string | null;
   created_at: string;
 }
 
