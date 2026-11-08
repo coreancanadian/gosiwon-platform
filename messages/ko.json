@@ -501,7 +501,8 @@
     "askingAbout": "문의 매물",
     "removeListing": "이 매물 첨부 안 함",
     "memberInquiries": "이 회원이 문의한 매물",
-    "viewThread": "대화 열기"
+    "viewThread": "대화 열기",
+    "teamCardBody": "캠퍼스플랫 이용 중 궁금한 점은 여기에서 운영팀에 문의해 주세요."
   },
   "AdminOverview": {
     "title": "서비스 현황",

@@ -161,7 +161,7 @@ export async function getSupportUnreadCount(role: UserRole): Promise<number> {
     .select("id", { count: "exact", head: true })
     .eq(role === "admin" ? "admin_unread" : "user_unread", true);
   // A failed count (e.g. before the migration is applied) must never break
-  // the page it's shown on — this runs in the site-wide layout.
+  // the page it's shown on — this runs in the site-wide header.
   return count ?? 0;
 }
 

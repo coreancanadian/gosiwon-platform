@@ -3,19 +3,24 @@ import Image from "next/image";
 import { LayoutDashboard, MessageSquare, ShieldCheck } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { getCurrentProfile } from "@/lib/auth";
+import { getSupportUnreadCount } from "@/lib/data/support";
 import { LocaleSwitcher } from "./LocaleSwitcher";
 import { LogoutButton } from "./LogoutButton";
 
 export async function Header() {
-  const [t, tRep] = await Promise.all([
+  const [t, tRep, tSupport] = await Promise.all([
     getTranslations("Nav"),
     getTranslations("Reputation"),
+    getTranslations("Support"),
   ]);
 
   // Null in demo mode, so the header renders its signed-out state.
   const profile = await getCurrentProfile();
   const user = profile;
   const role = profile?.role ?? null;
+  // Tenants have no dashboard menu to carry this, and the team card it leads
+  // to sits on their inquiries page.
+  const teamUnread = role === "tenant" ? await getSupportUnreadCount(role) : 0;
 
   return (
     <header className="sticky top-0 z-40 border-b border-ink-200 bg-white/90 backdrop-blur">
@@ -53,10 +58,18 @@ export async function Header() {
                 <>
                   <Link
                     href="/inquiries"
-                    className="flex items-center gap-1.5 rounded-full px-2 py-2 text-sm text-ink-600 transition hover:bg-ink-100 sm:px-3"
+                    aria-label={teamUnread > 0 ? `${t("myInquiries")} (${tSupport("newBadge")})` : t("myInquiries")}
+                    className="relative flex items-center gap-1.5 rounded-full px-2 py-2 text-sm text-ink-600 transition hover:bg-ink-100 sm:px-3"
                   >
                     <MessageSquare className="h-4 w-4" aria-hidden />
                     <span className="hidden sm:inline">{t("myInquiries")}</span>
+                    {teamUnread > 0 ? (
+                      <span
+                        aria-hidden
+                        data-team-unread
+                        className="absolute top-1 right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-red-500"
+                      />
+                    ) : null}
                   </Link>
                   {/* A tenant can always read the record hosts see. */}
                   <Link

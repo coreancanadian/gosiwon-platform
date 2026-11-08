@@ -200,7 +200,7 @@
     "acceptedNotice": "Your inquiry was accepted. You can now see the host's contact details.",
     "declinedNotice": "This inquiry was declined.",
     "pendingNotice": "Waiting for the host to respond.",
-    "fromTeam": "Campusflat team"
+    "fromTeam": "Campusflat Team"
   },
   "Auth": {
     "loginTitle": "Log in",
@@ -501,7 +501,8 @@
     "askingAbout": "About",
     "removeListing": "Don't attach this listing",
     "memberInquiries": "Listings this member inquired about",
-    "viewThread": "Open conversation"
+    "viewThread": "Open conversation",
+    "teamCardBody": "Questions about Campusflat? Message our team here."
   },
   "AdminOverview": {
     "title": "Platform overview",
