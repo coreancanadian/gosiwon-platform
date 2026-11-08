@@ -1,5 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
+import { SupportButton } from "./SupportButton";
 
 interface Section {
   heading: string;
@@ -51,6 +52,7 @@ export async function LegalDocument({
           </section>
         ))}
       </div>
+      <SupportButton />
     </div>
   );
 }

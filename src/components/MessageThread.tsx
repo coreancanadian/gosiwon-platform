@@ -121,6 +121,12 @@ export function MessageThread({ thread }: { thread: InquiryThread }) {
         ) : (
           thread.messages.map((message) => {
             const isMine = message.sender_id === thread.viewerId;
+            // Neither current party: the listing's previous owner, before a
+            // claim moved this inquiry. Without a label a new host would read
+            // these replies as coming from the renter.
+            const fromPreviousOwner =
+              message.sender_id !== thread.tenant_id &&
+              message.sender_id !== thread.owner_id;
             return (
               <div
                 key={message.id}
@@ -133,6 +139,11 @@ export function MessageThread({ thread }: { thread: InquiryThread }) {
                       : "bg-ink-100 text-ink-800"
                   }`}
                 >
+                  {fromPreviousOwner ? (
+                    <span className="mb-1 block text-xs font-semibold text-ink-500">
+                      {t("fromTeam")}
+                    </span>
+                  ) : null}
                   {message.body}
                   <span
                     className={`mt-1 block text-[11px] ${isMine ? "text-white/70" : "text-ink-400"}`}

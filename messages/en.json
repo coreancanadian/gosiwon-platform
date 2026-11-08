@@ -199,7 +199,8 @@
     "emptyHint": "Send the first message to start the conversation.",
     "acceptedNotice": "Your inquiry was accepted. You can now see the host's contact details.",
     "declinedNotice": "This inquiry was declined.",
-    "pendingNotice": "Waiting for the host to respond."
+    "pendingNotice": "Waiting for the host to respond.",
+    "fromTeam": "Campusflat team"
   },
   "Auth": {
     "loginTitle": "Log in",

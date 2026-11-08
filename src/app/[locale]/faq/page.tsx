@@ -1,5 +1,6 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
+import { SupportButton } from "@/components/SupportButton";
 
 interface FaqItem {
   q: string;
@@ -42,6 +43,7 @@ export default async function FaqPage({
           </details>
         ))}
       </div>
+      <SupportButton />
     </div>
   );
 }
