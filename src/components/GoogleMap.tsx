@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MapPinned } from "lucide-react";
-import { buildPinElement, buildHighlightPinElement } from "./map-pin";
+import { buildPinElement, buildHighlightPinElement, pinClassName } from "./map-pin";
 import { useIdleSuppression } from "@/lib/use-idle-suppression";
 import type { MapProviderProps } from "./map-types";
 
@@ -287,20 +287,21 @@ export function GoogleMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [markers, status, autoFit]);
 
-  // Restyle highlighted pins without rebuilding every overlay.
+  // Restyle only the pins whose highlight changed — with a couple of thousand
+  // pins, touching every one on each hover would make hovering lag.
+  const highlightedRef = useRef<string[]>([]);
   useEffect(() => {
     if (status !== "ready") return;
-    overlaysRef.current.forEach(({ el }, id) => {
-      const marker = markers.find((m) => m.id === id);
-      if (!marker) return;
-      const fresh = buildPinElement({
-        gender: marker.gender,
-        label: marker.label,
+    const ids = new Set([...highlightedRef.current, activeId, selectedId]);
+    ids.forEach((id) => {
+      const entry = id ? overlaysRef.current.get(id) : undefined;
+      if (!entry) return;
+      entry.el.className = pinClassName({
         isActive: id === activeId,
         isSelected: id === selectedId,
       });
-      el.className = fresh.className;
     });
+    highlightedRef.current = [activeId, selectedId].filter((id): id is string => !!id);
   }, [activeId, selectedId, markers, status]);
 
   /**

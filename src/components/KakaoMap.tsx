@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MapPinned } from "lucide-react";
-import { buildPinElement, buildHighlightPinElement } from "./map-pin";
+import { buildPinElement, buildHighlightPinElement, pinClassName } from "./map-pin";
 import { useIdleSuppression } from "@/lib/use-idle-suppression";
 import type { MapProviderProps } from "./map-types";
 
@@ -233,23 +233,21 @@ export function KakaoMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [markers, status, autoFit]);
 
-  // Restyle highlighted pins without rebuilding every overlay.
+  // Restyle only the pins whose highlight changed — with a couple of thousand
+  // pins, touching every one on each hover would make hovering lag.
+  const highlightedRef = useRef<string[]>([]);
   useEffect(() => {
     if (status !== "ready") return;
-    overlaysRef.current.forEach(({ overlay, el }, id) => {
-      const marker = markers.find((m) => m.id === id);
-      if (!marker) return;
+    const ids = new Set([...highlightedRef.current, activeId, selectedId]);
+    ids.forEach((id) => {
+      const entry = id ? overlaysRef.current.get(id) : undefined;
+      if (!entry) return;
       const isActive = id === activeId;
       const isSelected = id === selectedId;
-      const fresh = buildPinElement({
-        gender: marker.gender,
-        label: marker.label,
-        isActive,
-        isSelected,
-      });
-      el.className = fresh.className;
-      overlay.setZIndex(isSelected ? 20 : isActive ? 10 : 1);
+      entry.el.className = pinClassName({ isActive, isSelected });
+      entry.overlay.setZIndex(isSelected ? 20 : isActive ? 10 : 1);
     });
+    highlightedRef.current = [activeId, selectedId].filter((id): id is string => !!id);
   }, [activeId, selectedId, markers, status]);
 
   /**

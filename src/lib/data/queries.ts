@@ -1,12 +1,15 @@
 import "server-only";
 
+import { unstable_cache } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import {
   housingCategoryOf,
   type Amenity,
   type GenderPolicy,
   type HousingCategory,
+  type ListingSummary,
   type PropertyType,
   type PropertyWithRelations,
   type Region,
@@ -207,25 +210,100 @@ function applyDemoFilters(filters: SearchFilters): DemoProperty[] {
   return results;
 }
 
+/** Cache tag on every search result; server actions that change listings expire it. */
+export const LISTINGS_CACHE_TAG = "listings";
+
+/**
+ * How long a cached search result may be served before it is refreshed.
+ * Owner edits through the dashboard expire it immediately (updateTag), so this
+ * only bounds staleness from changes made elsewhere, e.g. bulk imports.
+ */
+const SEARCH_CACHE_SECONDS = 3600;
+
+/**
+ * Rows per request. Supabase's REST API returns at most 1,000 rows per call
+ * (its "max rows" setting), so larger result sets are read in pages.
+ */
+const PAGE_SIZE = 1000;
+
+/** Hard stop so a misbehaving count can never loop forever (= 50,000 rows). */
+const MAX_PAGES = 50;
+
+// Only what a result card and its map pin show. The cover photo is the one
+// image per listing sorted first (cover, then lowest sort_order); rooms carry
+// just the flag the card counts.
+const SUMMARY_SELECT = `
+  id, slug, name_ko, name_en, address_ko, address_en,
+  property_type, gender, price_min, price_max, lat, lng,
+  rooms (is_available),
+  property_images (storage_path)
+` as const;
+
+type SummaryRow = Omit<
+  ListingSummary,
+  "cover_path" | "room_count" | "rooms_available"
+> & {
+  rooms: { is_available: boolean }[] | null;
+  property_images: { storage_path: string }[] | null;
+};
+
+function toSummary(row: SummaryRow): ListingSummary {
+  const { rooms, property_images, ...fields } = row;
+  return {
+    ...fields,
+    cover_path: property_images?.[0]?.storage_path ?? null,
+    room_count: rooms?.length ?? 0,
+    rooms_available: rooms?.filter((r) => r.is_available).length ?? 0,
+  };
+}
+
+function demoSummary(p: DemoProperty): ListingSummary {
+  const images = [...(p.property_images ?? [])].sort(
+    (a, b) => Number(b.is_cover) - Number(a.is_cover) || a.sort_order - b.sort_order,
+  );
+  return toSummary({ ...p, property_images: images.slice(0, 1) });
+}
+
+/**
+ * Every published listing matching the filters, as card-sized summaries.
+ *
+ * Returns the complete set, never a truncated one: the list and the map show
+ * the same results, and the map pins all of them. Results are cached for
+ * everyone for up to an hour (and refreshed at once when an owner edits a
+ * listing), so a busy search page doesn't re-download them from Supabase on
+ * every view.
+ */
 export async function searchProperties(
   filters: SearchFilters = {},
-): Promise<PropertyWithRelations[]> {
-  if (!isSupabaseConfigured()) return applyDemoFilters(filters);
+): Promise<ListingSummary[]> {
+  if (!isSupabaseConfigured()) return applyDemoFilters(filters).map(demoSummary);
+  // Drop empty values so equivalent searches share one cache entry.
+  const key = Object.fromEntries(
+    Object.entries(filters).filter(([, v]) => v != null && v !== ""),
+  ) as SearchFilters;
+  return cachedSearch(key);
+}
 
-  const supabase = await createClient();
-  let query = supabase
-    .from("properties")
-    .select(PROPERTY_SELECT)
-    .eq("is_published", true);
+const cachedSearch = unstable_cache(
+  (filters: SearchFilters) => runSearch(filters),
+  ["search-listings-v2"],
+  { revalidate: SEARCH_CACHE_SECONDS, tags: [LISTINGS_CACHE_TAG] },
+);
+
+async function runSearch(filters: SearchFilters): Promise<ListingSummary[]> {
+  const supabase = createPublicClient();
+
+  let stationPropertyIds: string[] | null = null;
+  let regionId: string | null = null;
 
   if (filters.regionSlug) {
     const { data: region } = await supabase
       .from("regions")
       .select("id")
       .eq("slug", filters.regionSlug)
-      .single();
+      .maybeSingle();
     if (!region) return [];
-    query = query.eq("region_id", region.id);
+    regionId = region.id;
   }
 
   if (filters.stationSlug) {
@@ -233,70 +311,89 @@ export async function searchProperties(
       .from("subway_stations")
       .select("id")
       .eq("slug", filters.stationSlug)
-      .single();
+      .maybeSingle();
     if (!station) return [];
 
+    // A station has at most a few dozen listings, well under one page.
     const { data: links } = await supabase
       .from("property_subway")
       .select("property_id")
       .eq("station_id", station.id);
 
-    const ids = (links ?? []).map((l) => l.property_id);
-    if (ids.length === 0) return [];
-    query = query.in("id", ids);
+    stationPropertyIds = (links ?? []).map((l) => l.property_id);
+    if (stationPropertyIds.length === 0) return [];
   }
 
-  if (filters.q) {
-    const pattern = `%${filters.q}%`;
-    query = query.or(
-      `name_ko.ilike.${pattern},name_en.ilike.${pattern},address_ko.ilike.${pattern},address_en.ilike.${pattern}`,
-    );
-  }
+  // Built fresh for each page: a query builder can't be re-run with a new range.
+  const buildQuery = () => {
+    let query = supabase
+      .from("properties")
+      .select(SUMMARY_SELECT, { count: "exact" })
+      .eq("is_published", true)
+      .order("is_cover", { referencedTable: "property_images", ascending: false })
+      .order("sort_order", { referencedTable: "property_images", ascending: true })
+      .limit(1, { referencedTable: "property_images" });
 
-  if (filters.gender && filters.gender !== "any") {
-    query = query.in("gender", [filters.gender, "any"]);
-  }
+    if (regionId) query = query.eq("region_id", regionId);
+    if (stationPropertyIds) query = query.in("id", stationPropertyIds);
 
-  if (filters.propertyType) {
-    query = query.eq("property_type", filters.propertyType);
-  } else if (filters.housingCategory) {
-    // Filter on the concrete types rather than the generated column so this
-    // still works against a schema generated before migration 0005.
-    query = query.in("property_type", TYPES_BY_CATEGORY[filters.housingCategory]);
-  }
-  // nearby_universities is a GIN-indexed text[], so containment is indexed.
-  if (filters.university) {
-    query = query.contains("nearby_universities", [filters.university]);
-  }
-  if (filters.minPrice != null) query = query.gte("price_max", filters.minPrice);
-  if (filters.maxPrice != null) query = query.lte("price_min", filters.maxPrice);
+    if (filters.q) {
+      const pattern = `%${filters.q}%`;
+      query = query.or(
+        `name_ko.ilike.${pattern},name_en.ilike.${pattern},address_ko.ilike.${pattern},address_en.ilike.${pattern}`,
+      );
+    }
 
-  switch (filters.sort) {
-    case "price_asc":
-      query = query.order("price_min", { ascending: true, nullsFirst: false });
-      break;
-    case "price_desc":
-      query = query.order("price_min", { ascending: false, nullsFirst: false });
-      break;
-    case "newest":
-      query = query.order("created_at", { ascending: false });
-      break;
-    default:
-      query = query.order("updated_at", { ascending: false });
-  }
+    if (filters.gender && filters.gender !== "any") {
+      query = query.in("gender", [filters.gender, "any"]);
+    }
 
-  // No place filter means "everything" — cap it. The map refetches by
-  // viewport anyway, so a larger first page buys nothing but payload.
-  if (!filters.regionSlug && !filters.stationSlug && !filters.university) {
-    query = query.limit(300);
-  }
+    if (filters.propertyType) {
+      query = query.eq("property_type", filters.propertyType);
+    } else if (filters.housingCategory) {
+      // Filter on the concrete types rather than the generated column so this
+      // still works against a schema generated before migration 0005.
+      query = query.in("property_type", TYPES_BY_CATEGORY[filters.housingCategory]);
+    }
+    // nearby_universities is a GIN-indexed text[], so containment is indexed.
+    if (filters.university) {
+      query = query.contains("nearby_universities", [filters.university]);
+    }
+    if (filters.minPrice != null) query = query.gte("price_max", filters.minPrice);
+    if (filters.maxPrice != null) query = query.lte("price_min", filters.maxPrice);
 
-  const { data, error } = await query;
-  if (error) throw new Error(`Search failed: ${error.message}`);
-  // Cast: the hand-written Database type carries empty Relationships, so
-  // postgrest can't infer the shape of the nested rooms/images/regions selects.
-  // Regenerating types from the live schema removes the need for this.
-  return (data ?? []) as unknown as PropertyWithRelations[];
+    switch (filters.sort) {
+      case "price_asc":
+        query = query.order("price_min", { ascending: true, nullsFirst: false });
+        break;
+      case "price_desc":
+        query = query.order("price_min", { ascending: false, nullsFirst: false });
+        break;
+      case "newest":
+        query = query.order("created_at", { ascending: false });
+        break;
+      default:
+        query = query.order("updated_at", { ascending: false });
+    }
+    // Tie-breaker: many imported listings share a timestamp or price, and
+    // without a unique final key pages could overlap or skip rows.
+    return query.order("id", { ascending: true });
+  };
+
+  const results: ListingSummary[] = [];
+  let total = Infinity;
+  for (let page = 0; page < MAX_PAGES && results.length < total; page++) {
+    const from = page * PAGE_SIZE;
+    const { data, error, count } = await buildQuery().range(from, from + PAGE_SIZE - 1);
+    if (error) throw new Error(`Search failed: ${error.message}`);
+    // Cast: the hand-written Database type carries empty Relationships, so
+    // postgrest can't infer the shape of the nested rooms/images selects.
+    const rows = (data ?? []) as unknown as SummaryRow[];
+    results.push(...rows.map(toSummary));
+    if (count != null) total = count;
+    if (rows.length === 0) break;
+  }
+  return results;
 }
 
 export async function getPropertyBySlug(

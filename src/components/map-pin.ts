@@ -41,6 +41,28 @@ export interface PinOptions {
   isSelected: boolean;
 }
 
+/** A pin's classes for its highlight state — restyling without rebuilding it. */
+export function pinClassName({
+  isActive,
+  isSelected,
+}: {
+  isActive?: boolean;
+  isSelected?: boolean;
+}): string {
+  const ring = isSelected
+    ? "border-ink-900 ring-2 ring-ink-900/25"
+    : isActive
+      ? "border-ink-700"
+      : "border-white";
+
+  return [
+    "flex h-8 w-8 cursor-pointer items-center justify-center rounded-full",
+    "border-2 bg-white shadow-md transition-transform duration-150",
+    ring,
+    isActive || isSelected ? "scale-115" : "hover:scale-110",
+  ].join(" ");
+}
+
 export function buildPinElement({
   gender,
   label,
@@ -52,18 +74,7 @@ export function buildPinElement({
   el.setAttribute("role", "button");
   el.setAttribute("aria-label", label);
 
-  const ring = isSelected
-    ? "border-ink-900 ring-2 ring-ink-900/25"
-    : isActive
-      ? "border-ink-700"
-      : "border-white";
-
-  el.className = [
-    "flex h-8 w-8 cursor-pointer items-center justify-center rounded-full",
-    "border-2 bg-white shadow-md transition-transform duration-150",
-    ring,
-    isActive || isSelected ? "scale-115" : "hover:scale-110",
-  ].join(" ");
+  el.className = pinClassName({ isActive, isSelected });
 
   el.innerHTML = personSvg(gender);
   return el;

@@ -6,10 +6,7 @@ import { Users, Home as HomeIcon, MapPin } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { formatPriceRange } from "@/lib/format";
-import {
-  housingCategoryOf,
-  type PropertyWithRelations,
-} from "@/lib/types/database";
+import { housingCategoryOf, type ListingSummary } from "@/lib/types/database";
 import { displayName, displayAddress } from "@/lib/localize";
 
 export function PropertyCard({
@@ -19,7 +16,7 @@ export function PropertyCard({
   onHover,
   imageUrl,
 }: {
-  property: PropertyWithRelations;
+  property: ListingSummary;
   isActive?: boolean;
   /** Picked from the map — a stronger, persistent highlight than hover. */
   isSelected?: boolean;
@@ -33,7 +30,7 @@ export function PropertyCard({
   const name = displayName(property, locale);
   const address = displayAddress(property, locale);
   const price = formatPriceRange(property.price_min, property.price_max, locale);
-  const availableRooms = property.rooms.filter((r) => r.is_available).length;
+  const availableRooms = property.rooms_available;
 
   return (
     <Link
@@ -104,7 +101,7 @@ export function PropertyCard({
               <span className="text-xs text-ink-500">{t("perMonth")}</span>
             </>
           ) : null}
-          {property.rooms.length === 0 ? null : availableRooms > 0 ? (
+          {property.room_count === 0 ? null : availableRooms > 0 ? (
             <span className="ml-auto text-xs text-ink-400">
               {t("roomsAvailable", { count: availableRooms })}
             </span>

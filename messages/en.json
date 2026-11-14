@@ -57,6 +57,7 @@
     },
     "anyGender": "Any gender",
     "anyType": "Any type",
+    "showMore": "Show more ({remaining, number} left)",
     "resultsInView": "{count} in this area",
     "universityHeading": "University",
     "noneInView": "No listings in this area",

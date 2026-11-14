@@ -344,6 +344,31 @@ export interface PropertyWithRelations extends Property {
   regions: Region | null;
 }
 
+/**
+ * One search result: just what its card and map pin show.
+ *
+ * Search returns every matching listing at once (the map pins them all), so
+ * this stays deliberately small — about a fifth of a full listing row.
+ */
+export interface ListingSummary {
+  id: string;
+  slug: string;
+  name_ko: string;
+  name_en: string | null;
+  address_ko: string;
+  address_en: string | null;
+  property_type: PropertyType;
+  gender: GenderPolicy;
+  price_min: number | null;
+  price_max: number | null;
+  lat: number | null;
+  lng: number | null;
+  /** Bucket-relative path of the cover photo; run through publicImageUrl. */
+  cover_path: string | null;
+  room_count: number;
+  rooms_available: number;
+}
+
 export type SupportThread = {
   id: string;
   user_id: string;

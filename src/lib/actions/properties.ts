@@ -1,6 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
+import { LISTINGS_CACHE_TAG } from "@/lib/data/queries";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
@@ -142,6 +143,8 @@ export async function updatePropertyDetails(
 
   revalidatePath("/dashboard/properties");
   revalidatePath(`/dashboard/properties/${propertyId}`);
+  // Search results are cached; show this edit there right away.
+  updateTag(LISTINGS_CACHE_TAG);
   return { ok: true };
 }
 
@@ -167,6 +170,7 @@ export async function setPublished(
 
   revalidatePath("/dashboard/properties");
   revalidatePath("/search");
+  updateTag(LISTINGS_CACHE_TAG);
   return { ok: true };
 }
 
@@ -205,6 +209,8 @@ export async function upsertRoom(input: unknown): Promise<ActionResult> {
   if (error) return { ok: false, error: error.message };
 
   revalidatePath(`/dashboard/properties/${propertyId}`);
+  // Search results are cached; show this edit there right away.
+  updateTag(LISTINGS_CACHE_TAG);
   return { ok: true };
 }
 
@@ -226,6 +232,8 @@ export async function deleteRoom(
   if (error) return { ok: false, error: error.message };
 
   revalidatePath(`/dashboard/properties/${propertyId}`);
+  // Search results are cached; show this edit there right away.
+  updateTag(LISTINGS_CACHE_TAG);
   return { ok: true };
 }
 
@@ -260,6 +268,8 @@ export async function setPropertyAmenities(
   }
 
   revalidatePath(`/dashboard/properties/${propertyId}`);
+  // Search results are cached; show this edit there right away.
+  updateTag(LISTINGS_CACHE_TAG);
   return { ok: true };
 }
 
@@ -298,6 +308,8 @@ export async function addPropertyImage(
   if (error) return { ok: false, error: error.message };
 
   revalidatePath(`/dashboard/properties/${propertyId}`);
+  // Search results are cached; show this edit there right away.
+  updateTag(LISTINGS_CACHE_TAG);
   return { ok: true };
 }
 
@@ -327,6 +339,8 @@ export async function setCoverImage(
   if (error) return { ok: false, error: error.message };
 
   revalidatePath(`/dashboard/properties/${propertyId}`);
+  // Search results are cached; show this edit there right away.
+  updateTag(LISTINGS_CACHE_TAG);
   return { ok: true };
 }
 
@@ -359,5 +373,7 @@ export async function deletePropertyImage(
   await supabase.storage.from("property-images").remove([image.storage_path]);
 
   revalidatePath(`/dashboard/properties/${propertyId}`);
+  // Search results are cached; show this edit there right away.
+  updateTag(LISTINGS_CACHE_TAG);
   return { ok: true };
 }

@@ -144,6 +144,10 @@ export default async function SearchPage({
       <div className="mt-6">
         <SearchResults
           properties={properties}
+          // No place and no text search: the results already ARE every
+          // listing matching the filters, so the map can browse them without
+          // fetching anything more.
+          isNationwide={!regionSlug && !stationSlug && !universitySlug && !filters.q}
           center={center}
           /* Attribute filters only. The place deliberately does NOT travel to
              the client: it seeds the first result set and the viewport, but
@@ -156,6 +160,7 @@ export default async function SearchPage({
             housingCategory: filters.housingCategory,
             minPrice: filters.minPrice,
             maxPrice: filters.maxPrice,
+            sort: filters.sort,
           }}
           place={
             region

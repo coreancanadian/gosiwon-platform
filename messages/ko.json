@@ -57,6 +57,7 @@
     },
     "anyGender": "성별 전체",
     "anyType": "유형 전체",
+    "showMore": "더 보기 ({remaining, number}개 남음)",
     "resultsInView": "이 지역에 {count}개",
     "universityHeading": "대학교",
     "noneInView": "이 지역에는 매물이 없습니다",

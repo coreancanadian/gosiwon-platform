@@ -9,37 +9,50 @@ import { PropertyCard } from "./PropertyCard";
 import { MapView, type MapBounds, type MapMarker } from "./MapView";
 import { genderSwatch } from "./map-pin";
 import { GenderGradientDefs } from "./GenderGradientDefs";
-import { createClient } from "@/lib/supabase/client";
 import type { Locale } from "@/i18n/routing";
 import { publicImageUrl } from "@/lib/storage";
-import { TYPES_BY_CATEGORY } from "@/lib/search-bands";
 import type {
   GenderPolicy,
   HousingCategory,
+  ListingSummary,
   PropertyType,
-  PropertyWithRelations,
 } from "@/lib/types/database";
 import { displayName } from "@/lib/localize";
 
-/** Filters the server already applied, replayed when refetching by map bounds. */
+/** Filters the server already applied, replayed when browsing by map. */
 export interface ActiveFilters {
   gender?: GenderPolicy;
   propertyType?: PropertyType;
   housingCategory?: HousingCategory;
   minPrice?: number;
   maxPrice?: number;
-  university?: string;
+  sort?: "recommended" | "price_asc" | "price_desc" | "newest";
 }
 
-const MAX_IN_VIEW = 300;
+/** Cards rendered at a time; more appear as the list is scrolled. */
+const LIST_PAGE = 40;
 
-function coverUrl(property: PropertyWithRelations): string | null {
-  const images = property.property_images ?? [];
-  if (images.length === 0) return null;
-  const cover =
-    images.find((i) => i.is_cover) ??
-    [...images].sort((a, b) => a.sort_order - b.sort_order)[0];
-  return cover ? publicImageUrl(cover.storage_path) : null;
+function inBounds(p: ListingSummary, b: MapBounds): boolean {
+  return (
+    p.lat != null &&
+    p.lng != null &&
+    p.lat >= b.swLat &&
+    p.lat <= b.neLat &&
+    p.lng >= b.swLng &&
+    p.lng <= b.neLng
+  );
+}
+
+/** The /api/search query string for these filters; also their identity. */
+function filtersQuery(filters: ActiveFilters): string {
+  const params = new URLSearchParams();
+  if (filters.gender) params.set("gender", filters.gender);
+  if (filters.propertyType) params.set("type", filters.propertyType);
+  if (filters.housingCategory) params.set("category", filters.housingCategory);
+  if (filters.minPrice != null) params.set("minPrice", String(filters.minPrice));
+  if (filters.maxPrice != null) params.set("maxPrice", String(filters.maxPrice));
+  if (filters.sort) params.set("sort", filters.sort);
+  return params.toString();
 }
 
 /** The region / station / university the user arrived from, if any. */
@@ -55,11 +68,15 @@ export interface PlaceContext {
 
 export function SearchResults({
   properties: initialProperties,
+  isNationwide = false,
   center,
   filters = {},
   place = null,
 }: {
-  properties: PropertyWithRelations[];
+  properties: ListingSummary[];
+  /** True when `properties` is already every listing matching `filters`
+   *  (no place or text search narrowed it). */
+  isNationwide?: boolean;
   center?: { lat: number; lng: number };
   filters?: ActiveFilters;
   place?: PlaceContext | null;
@@ -69,26 +86,34 @@ export function SearchResults({
   const tCommon = useTranslations("Common");
   const locale = useLocale() as Locale;
 
-  const [properties, setProperties] = useState(initialProperties);
-  const [loading, setLoading] = useState(false);
   // Hover highlights; a pin click also scrolls the list.
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mobileView, setMobileView] = useState<"list" | "map">("list");
   // Stop re-fitting the viewport once the user starts driving the map.
   const [userMovedMap, setUserMovedMap] = useState(false);
+  // The visible map area the list is narrowed to once the user drives the map.
+  const [viewBounds, setViewBounds] = useState<MapBounds | null>(null);
+  // Every listing matching the filters, fetched once the map takes over from
+  // a place-narrowed search. Keyed by filters so a filter change refetches;
+  // `items: null` records a failed fetch.
+  const [fetched, setFetched] = useState<{
+    key: string;
+    items: ListingSummary[] | null;
+  } | null>(null);
 
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
   const listRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef(new Map<string, HTMLElement>());
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Set by a pin click so hovering a card never yanks the list around.
   const pendingScrollRef = useRef<string | null>(null);
   // Latest viewport, kept even when the user hasn't panned, so clearing the
-  // place can refetch immediately without waiting for a map movement.
+  // place can switch to "this area" immediately without a map movement.
   const lastBoundsRef = useRef<MapBounds | null>(null);
 
   /**
@@ -107,64 +132,51 @@ export function SearchResults({
   const [syncedPlaceKey, setSyncedPlaceKey] = useState(placeKey);
   if (syncedProperties !== initialProperties) {
     const movedToNewPlace = Boolean(placeKey) && placeKey !== syncedPlaceKey;
-
     setSyncedProperties(initialProperties);
     setSyncedPlaceKey(placeKey);
     setSelectedId(null);
-
-    // Once the map is in charge it owns the list. Adopting the server's set
-    // here would undo that — clearing the place navigates, and the unfiltered
-    // response would replace the viewport's results with a nationwide list
-    // labelled as if it were "in this area".
-    if (movedToNewPlace || !userMovedMap) {
-      setProperties(initialProperties);
-      if (movedToNewPlace) setUserMovedMap(false);
-    }
+    if (movedToNewPlace) setUserMovedMap(false);
   }
 
   /**
-   * Refetch whatever is inside the viewport.
-   *
-   * Once the map moves it — not the region or station that was clicked to get
-   * here — decides what the list shows. Filters are replayed so panning never
-   * quietly reintroduces listings the user filtered out.
+   * Everything matching the filters, wherever it is — what the map browses
+   * once the user moves it. A place-free search already has it; otherwise
+   * it's fetched (from the server's shared cache) on the first map move.
+   * Null while that fetch is pending.
    */
-  const fetchInBounds = useCallback(
-    async (bounds: MapBounds) => {
-      setLoading(true);
-      const supabase = createClient();
+  const filtersKey = filtersQuery(filters);
+  const nationwide: ListingSummary[] | null = isNationwide
+    ? initialProperties
+    : fetched?.key === filtersKey
+      ? (fetched.items ?? initialProperties)
+      : null;
+  const loading = userMovedMap && nationwide == null;
 
-      let query = supabase
-        .from("properties")
-        .select("*, rooms (*), property_images (*), regions (*)")
-        .eq("is_published", true)
-        .gte("lat", bounds.swLat)
-        .lte("lat", bounds.neLat)
-        .gte("lng", bounds.swLng)
-        .lte("lng", bounds.neLng)
-        .limit(MAX_IN_VIEW);
+  useEffect(() => {
+    if (!userMovedMap || isNationwide || fetched?.key === filtersKey) return;
+    const controller = new AbortController();
+    fetch(`/api/search?${filtersKey}`, { signal: controller.signal })
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
+      .then((items: ListingSummary[]) => setFetched({ key: filtersKey, items }))
+      .catch((err: unknown) => {
+        if (controller.signal.aborted) return;
+        console.error("Loading listings for the map failed", err);
+        setFetched({ key: filtersKey, items: null });
+      });
+    return () => controller.abort();
+  }, [userMovedMap, isNationwide, fetched?.key, filtersKey]);
 
-      if (filters.gender && filters.gender !== "any") {
-        query = query.in("gender", [filters.gender, "any"]);
-      }
-      if (filters.propertyType) {
-        query = query.eq("property_type", filters.propertyType);
-      } else if (filters.housingCategory) {
-        query = query.in("property_type", TYPES_BY_CATEGORY[filters.housingCategory]);
-      }
-      if (filters.minPrice != null) query = query.gte("price_max", filters.minPrice);
-      if (filters.maxPrice != null) query = query.lte("price_min", filters.maxPrice);
-      if (filters.university) {
-        query = query.contains("nearby_universities", [filters.university]);
-      }
-
-      const { data, error } = await query;
-      setLoading(false);
-      if (error) return;
-      setProperties((data ?? []) as unknown as PropertyWithRelations[]);
-    },
-    [filters],
-  );
+  /**
+   * Once the map moves it — not the region or station that was clicked to get
+   * here — decides what the list shows: every matching listing inside the
+   * visible area. Filters still apply, so panning never quietly reintroduces
+   * listings the user filtered out. Filtering happens here in the browser, so
+   * panning and zooming cost no network requests.
+   */
+  const properties = useMemo(() => {
+    if (!userMovedMap || !nationwide || !viewBounds) return initialProperties;
+    return nationwide.filter((p) => inBounds(p, viewBounds));
+  }, [userMovedMap, nationwide, viewBounds, initialProperties]);
 
   const onBoundsChange = useCallback(
     (bounds: MapBounds, userInitiated: boolean) => {
@@ -172,25 +184,25 @@ export function SearchResults({
       if (!userInitiated) return;
       setUserMovedMap(true);
       if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => fetchInBounds(bounds), 350);
+      debounceRef.current = setTimeout(() => setViewBounds(bounds), 150);
     },
-    [fetchInBounds],
+    [],
   );
 
   /**
    * Drop the starting place and keep browsing from here.
    *
    * The URL param goes so the heading and a shared link agree with what is on
-   * screen, and the current viewport is refetched immediately rather than
-   * waiting for the user to nudge the map.
+   * screen, and the list switches to the current viewport immediately rather
+   * than waiting for the user to nudge the map.
    */
   const clearPlace = useCallback(() => {
     const next = new URLSearchParams(searchParams.toString());
     if (place) next.delete(place.param);
     setUserMovedMap(true);
-    if (lastBoundsRef.current) fetchInBounds(lastBoundsRef.current);
+    if (lastBoundsRef.current) setViewBounds(lastBoundsRef.current);
     router.replace(`${pathname}?${next.toString()}`, { scroll: false });
-  }, [fetchInBounds, pathname, place, router, searchParams]);
+  }, [pathname, place, router, searchParams]);
 
   useEffect(() => {
     return () => {
@@ -198,9 +210,13 @@ export function SearchResults({
     };
   }, []);
 
+  // Pins: before the user takes over, exactly the results; after, every
+  // matching listing (only those on screen are visible anyway), so zooming
+  // out reveals pins instantly and panning never rebuilds them.
+  const pinSource = userMovedMap && nationwide ? nationwide : initialProperties;
   const markers: MapMarker[] = useMemo(
     () =>
-      properties
+      pinSource
         .filter((p) => p.lat != null && p.lng != null)
         .map((p) => ({
           id: p.id,
@@ -209,8 +225,41 @@ export function SearchResults({
           label: displayName(p, locale),
           gender: p.gender,
         })),
-    [properties, locale],
+    [pinSource, locale],
   );
+
+  /**
+   * The list renders LIST_PAGE cards at a time — over a thousand cards at once
+   * would make the page sluggish. Reset to the first page whenever the
+   * results change; a pin selected further down extends it so its card exists.
+   */
+  const [shown, setShown] = useState({ list: properties, count: LIST_PAGE });
+  const pagedCount = shown.list === properties ? shown.count : LIST_PAGE;
+  const selectedIndex = selectedId ? properties.findIndex((p) => p.id === selectedId) : -1;
+  const visibleCount = Math.max(
+    pagedCount,
+    Math.ceil((selectedIndex + 1) / LIST_PAGE) * LIST_PAGE,
+  );
+  const visibleProperties = properties.slice(0, visibleCount);
+  const remaining = properties.length - visibleProperties.length;
+  const showMore = useCallback(
+    () => setShown({ list: properties, count: visibleCount + LIST_PAGE }),
+    [properties, visibleCount],
+  );
+
+  // Load the next page of cards as the end of the list scrolls into view.
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || remaining <= 0 || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) showMore();
+      },
+      { rootMargin: "600px 0px" },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [remaining, showMore]);
 
   /**
    * Clicking a pin selects the listing. On desktop the effect below scrolls
@@ -376,7 +425,7 @@ export function SearchResults({
             </div>
           ) : null}
 
-          {properties.map((property) => (
+          {visibleProperties.map((property) => (
             <div
               key={property.id}
               ref={(el) => {
@@ -389,10 +438,22 @@ export function SearchResults({
                 isActive={activeId === property.id}
                 isSelected={selectedId === property.id}
                 onHover={setHoveredId}
-                imageUrl={coverUrl(property)}
+                imageUrl={property.cover_path ? publicImageUrl(property.cover_path) : null}
               />
             </div>
           ))}
+
+          {remaining > 0 ? (
+            <div ref={sentinelRef} className="flex justify-center py-4">
+              <button
+                type="button"
+                onClick={showMore}
+                className="rounded-full border border-ink-200 bg-white px-4 py-2 text-sm font-medium text-ink-700 transition hover:bg-ink-50"
+              >
+                {t("showMore", { remaining })}
+              </button>
+            </div>
+          ) : null}
         </div>
 
         <div
@@ -447,7 +508,9 @@ export function SearchResults({
             <PropertyCard
               property={selectedProperty}
               isSelected
-              imageUrl={coverUrl(selectedProperty)}
+              imageUrl={
+                selectedProperty.cover_path ? publicImageUrl(selectedProperty.cover_path) : null
+              }
             />
           </div>
         </div>
